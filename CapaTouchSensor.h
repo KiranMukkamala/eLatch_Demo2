@@ -2,9 +2,8 @@
 #define CAPATOUCHSENSOR_H
 
 #include <Arduino.h>
+#include  "constants.h"
 
-#define CAPA_SEN_PIN 3
-#define CAPA_PWR_PIN 2
 
 
 class CapaTouchSensor {

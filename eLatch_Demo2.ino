@@ -38,9 +38,9 @@
  *                     [RX1] <------ MOC TX       
  *                     [D0]     x                        
  *                     [D1]     x                      
- *                     [D2] ------> CAPA Sensor PWR VDD                 
- *                     [D3] <------ CAPA Sensor OUT                            
- *                     [D4] ------> ELatch         
+ *                     [D2] ------> EXT CAPA Sensor PWR VDD                 
+ *                     [D3] <------ EXT CAPA Sensor OUT                            
+ *                     [D4] ------> ELatch Relay       
  *                     [D5]     x
  *                     [D6]     x                            
  *                     [D7]     x
@@ -48,10 +48,10 @@
  *                     [D9] ------> H-Bridge RPWM
  *                     [D10]------> H-Bridge LPWM
  *                     [D11]------> 
- *                     [D12]------> ELatch Switch
+ *                     [D12]<------ ELatch Switch state
  *                     [A0] ------> Not Used
  *                     [A1] <------ Unlock Threshold                         
- *                     [A2] <------ Open Threshold                        
+ *                     [A2] <------ Open Threshold(Unused)                       
  *                                                   
  *                                                   
  *                                                   
@@ -95,13 +95,9 @@
 #define SERIAL_DEBUG_SPEED 19200
 
 
-// ==== Manual Control of Door Handle Pin Switch Settings ====
-#define SW_CW_PIN 6
-#define SW_CCW_PIN 7
-
 //=== Manual Control of Door Handle Pin Switch ===
-Debounce buttonCW(SW_CW_PIN);
-Debounce buttonCCW(SW_CCW_PIN);
+Debounce buttonDeploy(DEPLOY_SW_PIN, LOW);
+Debounce buttonRetract(RETRACT_SW_PIN, LOW);
 
 
 void onMOCPull(const MOCSignalData& data) {
@@ -174,7 +170,7 @@ void setup() {
   Serial.println(F("and using AUDI e-Latch as combo"));
   Serial.println(F(" --------------------------------------------------"));
   Serial.println(F("by Adrian David, Smart Components Platform"));
-  Serial.println(F("version: 1.2, 2025.07.28"));
+  Serial.println(F("version: 1.3, 2025.08.22"));
   Serial.println(F("==================================================="));
   Serial.println(F(""));
   Serial.println(F(""));
@@ -196,7 +192,7 @@ void setup() {
   elatch.begin(&hbridge, E_LATCH_SW_PIN);
 
   //capa sensor
-  capaSensor.begin(CAPA_PWR_PIN, CAPA_SEN_PIN);
+  // capaSensor.begin(CAPA_PWR_PIN, CAPA_SEN_PIN);
 
   // MOC deploy / retract user threshold settings
   userPotiDeploy.begin(ADC_USER_DEPLOY_PIN, NUM_SAMPLES, ADC_REF_VOLTAGE);
@@ -222,8 +218,8 @@ void setup() {
 // === Main Loop ===
 void loop(void) {
 
-  buttonCW.update();
-  buttonCCW.update();
+  buttonDeploy.update();
+  buttonRetract.update();
   // eLatchSwitch.update();
 
   elatch.update();  //hbridge update is called inside of elatch update
@@ -237,7 +233,8 @@ void loop(void) {
 
   if(capaSensor.getCurrentState())
   {
-    Serial.println("CAPA Sensor state:: Pressed");
+    Serial.println("CAPA Sensor state:: Pressed for locking");
+    elatch.lock();  //come back to lock state
   }
 
   //hbridge.setState(HBRIDGE_CW);    // Starts CW movement with these parameters

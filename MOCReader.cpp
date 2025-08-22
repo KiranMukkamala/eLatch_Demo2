@@ -68,7 +68,7 @@ void MOCReader::processPacket(char* packet) {
     int16_t dataFrame[5];
     int8_t frameSize = sscanf(packet, "%d %d %d %d %d",
                         &dataFrame[0], &dataFrame[1], &dataFrame[2], &dataFrame[3], &dataFrame[4]);
-    Serial.println(" Received Packet:: " + String(dataFrame[1]));
+    // Serial.println(" Received Packet:: " + String(dataFrame[1]));
 
     if (frameSize == 5) {
         int16_t reference = dataFrame[0];

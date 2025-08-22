@@ -2,18 +2,8 @@
 #define HBRIDGE_H
 
 #include <Arduino.h>
+#include "constants.h"
 
-#define HBRIDGE_ENABLE_PIN 8
-#define HBRIDGE_RPWM_PIN 9
-#define HBRIDGE_LPWM_PIN 10
-
-#define RUN_TIME_CW 100
-#define RUN_TIME_CCW 200
-
-#define STOP_TIME 50
-
-#define DEFAULT_CW_PWM 1023
-#define DEFAULT_CCW_PWM 1023
 
 enum HBridgeState {
     HBRIDGE_INIT = 0,

@@ -30,8 +30,6 @@ void ELatchController::begin(HBridge* bridge, uint8_t pinSw) {
   risingSwEdge = false;
   fallingSwEdge = false;
 
-
-
   if ((hbridge) && (hbridge->setState(HBRIDGE_STOP)))
     Serial.println(F("ELatchController initialized (HBridge mode STOPPED)"));
 }
@@ -46,21 +44,6 @@ void ELatchController::updateSwitch(void) {
     Serial.println(String(F("Switch status changed from ")) + String(lastSwState) + String(F(" to ")) + String(currentSwState));
   }
   elatch.switchStatus = currentSwState;
-
-  // eLatchSwitch.update();
-
-  // if (isSwitchHigh()) {
-  //   elatch.switchStatus = isSwitchHigh();
-  //   // Serial.println(F("Switch status: High"));
-  // } else if (isSwitchLow()) {
-  //   elatch.switchStatus = isSwitchLow();
-  //   // Serial.println(F("Switch status: Low"));
-  // }
-
-  // if (elatch.lateSwitchStatus != elatch.switchStatus) {
-  //   Serial.println(String(F("Switch status changed from ")) + String(elatch.lateSwitchStatus) + String(F(" to ")) + String(elatch.switchStatus));
-  //   elatch.lateSwitchStatus = elatch.switchStatus;
-  // }
 }
 
 void ELatchController::update() {
@@ -85,8 +68,6 @@ void ELatchController::update() {
     PrevState = lastState;
     lastState = state;
     stateStartTime = millis();
-    // Added by Kiran for testing
-    //handleState();
   }
   // to refresh the state
   handleState();
@@ -100,8 +81,8 @@ void ELatchController::update() {
 void ELatchController::handleState() {
   uint32_t now = millis();
 
+  //get latest switch status
   updateSwitch();
-
 
   switch (state) {
     case ELATCH_INIT:
@@ -144,7 +125,7 @@ void ELatchController::handleState() {
                 }
               }  // Check for attempts
 
-            } /*else
+            }                           /*else
               Serial.println(String(F("ELATCH_LOCK: Waiting for Hbridge to STOP, current state: ")) + String(hbridge->getState()));*/
             stateStartTime = millis();  //for stopping time
             Serial.println(F("ELATCH_LOCK: Timer Stopped"));
@@ -171,7 +152,7 @@ void ELatchController::handleState() {
           }
           //Serial.println(String("ELATCH_UNLOCK hbridge state after trigger: ") + String(hbridge->getState()));
           if (!Nb_Attempts_LOCK) Nb_Attempts_LOCK = 0;  // reset so that next lock can happen only 3 times
-        } /*else {
+        }                                               /*else {
           Serial.println(String(F("ELATCH_UNLOCK: Waiting for Hbridge to STOP, current state: ")) + String(hbridge->getState()));
         }*/
       } else
@@ -212,7 +193,8 @@ void ELatchController::handleState() {
 
 void ELatchController::lock() {
   // if (!enabled || !activationAllowed) return;
-  transitionTo(ELATCH_LOCK);
+  if (state != ELATCH_LOCK)
+    transitionTo(ELATCH_LOCK);
 }
 void ELatchController::unlock() {
 

@@ -4,19 +4,7 @@
 #include <Arduino.h>
 #include "ADCReader.h"
 #include "global.h"
-
-#define MOC_COM_SPEED 19200
-#define CONNECTION_MOC_TIMEOUT_MS 500
-#define TIMEOUT_MOC_CONNECTION 1
-
-#define PACKET_BUFFER_SIZE 64
-#define SAMPLE_COUNT 1
-
-
-#define MOC_UNLOCK_THRESHOLD_MIN 350
-#define MOC_UNLOCK_THRESHOLD_MAX 1650
-#define MOC_OPEN_THRESHOLD_MIN 2101
-#define MOC_OPEN_THRESHOLD_MAX 5000
+#include "constants.h"
 
 
 // Structure to hold all relevant MOC data for the callback

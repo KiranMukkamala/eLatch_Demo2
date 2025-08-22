@@ -2,13 +2,10 @@
 #define ADCREADER_H
 
 #include <Arduino.h>
-#include "global.h"
+// #include "global.h"
+#include "constants.h"
 
 
-#define ADC_USER_DEPLOY_PIN A2
-#define ADC_USER_RETRACT_PIN A1
-#define ADC_REF_VOLTAGE 5
-#define NUM_SAMPLES 10
 
 class ADCReader {
 public:

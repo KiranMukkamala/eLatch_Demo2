@@ -5,15 +5,7 @@
 #include <Arduino.h>
 #include "HBridge.h"
 #include "Debounce.h"
-
-#define E_LATCH_SW_PIN 12
-
-#define ELATCH_LOCK_TIMEOUT_MS 5000  // ms relaxation for lock detection
-//#define ELATCH_UNLOCK_TIMEOUT_MS  800     // ms the latch motor runs to unlock
-//#define ELATCH_OPEN_TIMEOUT_MS    1000    // ms for open (if needed)
-//#define ELATCH_RETRIGGER_BLOCK_MS 1000    // ms block after operation
-
-#define MAX_ATTEMPTS 2  // Max attempts allowed to protect motor life cycle
+#include "constants.h"
 
 enum ELatchState {
   ELATCH_INIT = 0,
