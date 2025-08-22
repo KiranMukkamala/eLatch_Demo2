@@ -25,6 +25,6 @@ private:
   bool fallingEdge = false;
 };
 
-extern CapaTouchSensor capaSensor;
+// extern CapaTouchSensor capaSensor;
 
 #endif // CAPA_TOUCH_SENSOR_H

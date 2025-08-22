@@ -1,12 +1,11 @@
 #include "CapaTouchSensor.h"
 // #include "DebugLogger.h"
 
-CapaTouchSensor capaSensor;
 
 void CapaTouchSensor::begin(uint8_t enPin, uint8_t inputPin) {
   pin = inputPin;
   enablePin = enPin;
-  pinMode(pin, INPUT_PULLUP);
+  pinMode(pin, INPUT);
   pinMode(enablePin, OUTPUT);
   enable(true);
 

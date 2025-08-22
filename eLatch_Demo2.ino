@@ -229,13 +229,13 @@ void loop(void) {
 
   mocReader.update();
 
-  capaSensor.update();
+  // capaSensor.update();
 
-  if(capaSensor.getCurrentState())
-  {
-    Serial.println("CAPA Sensor state:: Pressed for locking");
-    elatch.lock();  //come back to lock state
-  }
+  // if(capaSensor.getCurrentState())
+  // {
+  //   Serial.println("CAPA Sensor state:: Pressed for locking");
+  //   elatch.lock();  //come back to lock state
+  // }
 
   //hbridge.setState(HBRIDGE_CW);    // Starts CW movement with these parameters
 }  //end main loop
