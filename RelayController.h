@@ -2,14 +2,7 @@
 #define RELAYCONTROLLER_H
 
 #include <Arduino.h>
-
-#define RELAY_SW_CW_PIN A5 // CW 
-#define RELAY_SW_CCW_PIN 4 // CCW
-
-#define RUN_TIME_CW 200
-#define RUN_TIME_CCW 200
-
-#define STOP_TIME 500
+#include "constants.h"
 
 enum RelayState {
   RELAY_INIT = 0,
@@ -54,7 +47,7 @@ private:
   // Store timeout per direction
   uint16_t cwDuration = RUN_TIME_CW;
   uint16_t ccwDuration = RUN_TIME_CCW;
-  uint16_t stopDuration = STOP_TIME;
+  uint16_t stopDuration = ELATCH_MOTOR_STOP_TIME;
 
   RelayState commandState = RELAY_STOP;
   RelayState lastCommandState = RELAY_INIT;
@@ -70,6 +63,6 @@ private:
   void stop();
 };
 
-extern RelayController relaycontroller;
+extern RelayController eLatchMotorDriver;
 
 #endif  // RELAYCONTROLLER_H

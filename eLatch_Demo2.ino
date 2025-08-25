@@ -84,12 +84,12 @@
 
 #include "MOCReader.h"
 #include "TimeoutManager.h"
-//#include "DebugLogger.h"
-//#include "ADCReader.h"
-//#include "global.h"
-//#include "HBridge.h"
-#include "ELatchController.h"
+// #include "ELatchController.h"
 #include "CapaTouchSensor.h"
+#include "LEDControl.h"
+#include "constants.h"
+#include "motorController.h"
+#include "RelayController.h"
 
 #define DEBUGGING_ENABLED true
 #define SERIAL_DEBUG_SPEED 19200
@@ -98,12 +98,29 @@
 //=== Manual Control of Door Handle Pin Switch ===
 Debounce buttonDeploy(DEPLOY_SW_PIN, LOW);
 Debounce buttonRetract(RETRACT_SW_PIN, LOW);
+// DOOR Handle State
+DoorHandleState doorHandleState = DOOR_HANDLE_INIT;
+DoorHandleState lastDoorHandleState = DOOR_HANDLE_INIT;
 
+//CAPA Sensor objects
+CapaTouchSensor extcapaSensor;
+CapaTouchSensor inrcapaSensor;
+bool Disable_Locking = false;  // for disabling the external capa sensor
+
+//LED contzrol object
+LEDControl ledCtrl;
+
+//eLatch Switch status
+bool latchSwitchState = false;
+bool risingSwEdge = false;
+bool fallingSwEdge = false;
+bool currentSwState = HIGH;
+bool lastSwState = HIGH;
 
 void onMOCPull(const MOCSignalData& data) {
 
   static bool triggerActive = false;
-  static bool unlockTriggerActive = false;
+  //static bool unlockTriggerActive = false;
 
   // Serial.println(String(F("data.diff: ")) + String(abs(data.diff)));
   // Serial.println(String(F("unlockThreshold: ")) + String(data.unlockThreshold));
@@ -111,42 +128,41 @@ void onMOCPull(const MOCSignalData& data) {
 
 
   //detect user action like pulling
-  if ((!unlockTriggerActive) && abs(data.diff) >= data.unlockThreshold) {
-
-    // bool monotonicOpen = ((data.mid <= data.oldest) && (data.newest <= data.mid));
-    // if diff exceeds unlock threshold then call unlock
-    Serial.println(String(F("data.diff: ")) + String(abs(data.diff)));
-    Serial.println(String(F("unlockThreshold: ")) + String(data.unlockThreshold));
-    // Serial.println(String(F("openThreshold: ")) + String(data.openThreshold));
-    Serial.println(F("MOC -> eLatch unlocked!"));
-    elatch.unlock();
-    unlockTriggerActive = true;
-
-  } else if (!triggerActive && abs(data.diff) >= data.unlockThreshold) {
+  if (!triggerActive && abs(data.diff) >= data.unlockThreshold) {
 
     bool monotonicOpen = ((data.mid <= data.oldest) && (data.newest <= data.mid));
-    bool openTrig = ((data.diff <= -data.openThreshold) && monotonicOpen);
-    if (openTrig) {
+    if (monotonicOpen) {
       Serial.println(String(F("data.diff: ")) + String(abs(data.diff)));
       // Serial.println(String(F("unlockThreshold: ")) + String(data.unlockThreshold));
       Serial.println(String(F("openThreshold: ")) + String(data.openThreshold));
       Serial.println(F("MOC -> eLatch Open"));
       // elatch.open();  //user had pulled the lever with intention to open
+      doorHandleState = DOOR_HANDLE_OPEN;
       triggerActive = true;
     }
   } else
     // resting position of door handle
-    if (unlockTriggerActive && abs(data.diff) < data.unlockThreshold) {
+    if (triggerActive && (abs(data.diff) < data.unlockThreshold)) {
       // Reset when returning to rest state
-      Serial.println(F("MOC -> eLatch locked"));
+      Serial.println(F("MOC -> released"));
       triggerActive = false;
-      unlockTriggerActive = false;
-      elatch.lock();  //come back to lock state
+      // elatch.lock();  //come back to lock state
     }
 }
 
-// bool toogle = true;
-// bool toogleLast = false;
+void updateeLatchSwitch(void) {
+  bool rawState = digitalRead(E_LATCH_SW_PIN);
+  risingSwEdge = (rawState && !currentSwState);
+  fallingSwEdge = (!rawState && currentSwState);
+  lastSwState = currentSwState;
+  currentSwState = rawState;
+  if (lastSwState != currentSwState) {
+    Serial.println(String(F("Switch status changed from ")) + String(lastSwState) + String(F(" to ")) + String(currentSwState));
+  }
+  latchSwitchState = currentSwState;
+}
+
+
 // === Setup ===
 void setup() {
 
@@ -183,36 +199,48 @@ void setup() {
   mocReader.begin();
   mocReader.setChangeCallback(onMOCPull);
 
-  Serial.println(String(F("Hbridge state before change: ")) + String(hbridge.getState()));
+  // Serial.println(String(F("Hbridge state before change: ")) + String(hbridge.getState()));
 
   //h-bridge
-  hbridge.begin(HBRIDGE_ENABLE_PIN, HBRIDGE_RPWM_PIN, HBRIDGE_LPWM_PIN);
+  // hbridge.begin(HBRIDGE_ENABLE_PIN, HBRIDGE_RPWM_PIN, HBRIDGE_LPWM_PIN);
 
   //e-Latch
-  elatch.begin(&hbridge, E_LATCH_SW_PIN);
+  // elatch.begin(&hbridge, E_LATCH_SW_PIN);
+
+  //door handle actuator
+  actuator.begin(MOTOR_ENABLE_PIN, MOTOR_RPWM_PIN, MOTOR_LPWM_PIN,
+                 DEPLOY_PWM, RETRACT_PWM,
+                 DEPLOY_TIME_MS, RETRACT_TIME_MS);
+
+  // Relay to drive elacth
+  eLatchMotorDriver.begin(RELAY_SW_CW_PIN, RELAY_SW_CCW_PIN);
+
+  // Elatch switch configuration
+  pinMode(E_LATCH_SW_PIN, INPUT_PULLUP);
 
   //capa sensor
-  // capaSensor.begin(CAPA_PWR_PIN, CAPA_SEN_PIN);
+  extcapaSensor.begin(EXT_CAPA_PWR_PIN, EXT_CAPA_SEN_PIN);
+  inrcapaSensor.begin(INR_CAPA_PWR_PIN, INR_CAPA_SEN_PIN);
 
   // MOC deploy / retract user threshold settings
   userPotiDeploy.begin(ADC_USER_DEPLOY_PIN, NUM_SAMPLES, ADC_REF_VOLTAGE);
   userPotiRetract.begin(ADC_USER_RETRACT_PIN, NUM_SAMPLES, ADC_REF_VOLTAGE);
 
+  //led door handle
+  ledCtrl.begin(LED_PWM_PIN, LED_MAX_BRIGHTNESS);
+
+  // Serial.println(String(F("Hbridge state before change: ")) + String(hbridge.getState()));
+
+  // elatch.enableActivation(true);
+  // Serial.println(F("Hbridge state after change: ") + String(hbridge.getState()));
+  // Serial.println(String(F("Hbridge state after change: ")) + String(hbridge.getState()));
+
+  // initialization of main state machine
+  doorHandleState = DOOR_HANDLE_INIT;
 
   Serial.println(F("Setup Completed."));
   Serial.println(F(""));
-  Serial.println(String(F("Hbridge state before change: ")) + String(hbridge.getState()));
-
-  elatch.enableActivation(true);
-  // Serial.println(F("Hbridge state after change: ") + String(hbridge.getState()));
-  Serial.println(String(F("Hbridge state after change: ")) + String(hbridge.getState()));
-
-
-
 }  // end setup
-
-
-
 
 
 // === Main Loop ===
@@ -220,22 +248,172 @@ void loop(void) {
 
   buttonDeploy.update();
   buttonRetract.update();
-  // eLatchSwitch.update();
 
-  elatch.update();  //hbridge update is called inside of elatch update
+  updateeLatchSwitch();
 
   userPotiDeploy.update();
   userPotiRetract.update();
 
   mocReader.update();
 
-  // capaSensor.update();
+  // Capa sensor update
+  inrcapaSensor.update();
+  extcapaSensor.update();
 
-  // if(capaSensor.getCurrentState())
-  // {
-  //   Serial.println("CAPA Sensor state:: Pressed for locking");
-  //   elatch.lock();  //come back to lock state
-  // }
+  ledCtrl.updateLedState();
+
+  MainStateMachineRun();
+
+  updateeLatchSwitch();
+
+  // refresh the actuator state
+  actuator.update();
+
+  // refresh elatch motor
+  eLatchMotorDriver.update();
+
+  ledCtrl.updateLedState();
 
   //hbridge.setState(HBRIDGE_CW);    // Starts CW movement with these parameters
 }  //end main loop
+
+void RefreshHandleState(void);
+
+void Check_Disable_Locking(void) {
+  // Handling the Proximity sensing logic to diable locking
+  if ((!Disable_Locking) && inrcapaSensor.getCurrentState()) {
+    extcapaSensor.enable(false);
+    Disable_Locking = true;
+
+  } else if (Disable_Locking && (!inrcapaSensor.getCurrentState())) {
+    extcapaSensor.enable(true);
+    Disable_Locking = false;
+  }
+}
+
+void MainStateMachineRun(void) {
+  // Validate the state transitions
+  if (doorHandleState != lastDoorHandleState) {
+    switch (doorHandleState) {
+      case DOOR_HANDLE_INIT: break;
+      case DOOR_HANDLE_CLOSED:
+        if (latchSwitchState) {
+          lastDoorHandleState = doorHandleState;
+          ledCtrl.ledOn();
+          Serial.println(F("Entering DOOR_HANDLE_CLOSED"));
+        } else {
+          Serial.println(F("Please close the DOOR!!!"));
+          ledCtrl.ledOff();
+        }
+        break;
+      case DOOR_HANDLE_RETRACT:
+        if ((lastDoorHandleState != DOOR_HANDLE_LATCHED) || (lastDoorHandleState != DOOR_HANDLE_WAIT_OPEN)) {
+          Serial.println(F("Cannot Retract DOOR HANDLE!!!"));
+        } else {
+          lastDoorHandleState = doorHandleState;
+          Serial.println(F("Entering DOOR_HANDLE_RETRACT"));
+        }
+        break;
+      case DOOR_HANDLE_DEPLOYED:
+        if (lastDoorHandleState == DOOR_HANDLE_CLOSED) {
+          lastDoorHandleState = doorHandleState;
+          Serial.println(F("Entering DOOR_HANDLE_DEPLOYED"));
+        } else {
+          Serial.println(F("Cannot Deploy DOOR HANDLE!!!"));
+        }
+        break;
+      case DOOR_HANDLE_WAIT_OPEN:
+        if (lastDoorHandleState == DOOR_HANDLE_DEPLOYED) {
+          lastDoorHandleState = doorHandleState;
+          Serial.println(F("Entering DOOR_HANDLE_WAIT_OPEN"));
+        } else {
+          Serial.println(F("Deployment of DOOR HANDLE not correct!!!"));
+        }
+        break;
+      case DOOR_HANDLE_OPEN:
+        if (lastDoorHandleState == DOOR_HANDLE_WAIT_OPEN) {
+          lastDoorHandleState = doorHandleState;
+          Serial.println(F("Entering DOOR_HANDLE_OPEN"));
+        } else {
+          Serial.println(F("Opening of DOOR HANDLE before deployment is not correct!!!"));
+        }
+        break;
+      case DOOR_HANDLE_LATCHED: Serial.println(F("Entering DOOR_HANDLE_LATCHED")); break;
+      default: Serial.println(F("Unknown state entered")); break;
+    }
+  }
+
+  RefreshHandleState();
+}
+
+void RefreshHandleState(void) {
+  // refresh the state machine
+  switch (doorHandleState) {
+    case DOOR_HANDLE_INIT:
+      actuator.triggerAction(3000);
+      doorHandleState = DOOR_HANDLE_CLOSED;
+      inrcapaSensor.enable(false);
+      inrcapaSensor.enable(true);
+      extcapaSensor.enable(false);
+      extcapaSensor.enable(true);
+      break;
+
+    case DOOR_HANDLE_CLOSED:
+      // Process Deploy switch event, check for MOTOR status then move to next state.
+      if (buttonDeploy.isPressed() && (actuator.getState() == MOTOR_STOP)) {
+        doorHandleState = DOOR_HANDLE_DEPLOYED;
+      }
+      break;
+
+    case DOOR_HANDLE_RETRACT:
+      Serial.println(F("DOOR_HANDLE_RETRACT:: CCW Triggered"));
+      inrcapaSensor.enable(false);
+      extcapaSensor.enable(false);
+      if (actuator.setState(MOTOR_START_RETRACT) && eLatchMotorDriver.setState(RELAY_CCW)) {
+        doorHandleState = DOOR_HANDLE_CLOSED;
+      } else {
+        Serial.println(F("DOOR_HANDLE_RETRACT:: Waiting for Actuator & elatch status!!!"));
+      }
+      break;
+
+    case DOOR_HANDLE_DEPLOYED:
+      Serial.println(F("DOOR_HANDLE_DEPLOYED:: CW Triggered"));
+      inrcapaSensor.enable(false);
+      inrcapaSensor.enable(true);
+      extcapaSensor.enable(false);
+      extcapaSensor.enable(true);
+
+      // actuator.triggerAction(4000);
+      // go to next state only if the actuator and eLatch are deployed and ready
+      if (actuator.setState(MOTOR_START_DEPLOY) && eLatchMotorDriver.setState(RELAY_CW)) {
+        doorHandleState = DOOR_HANDLE_WAIT_OPEN;
+      } else {
+        Check_Disable_Locking();
+        Serial.println(F("DOOR_HANDLE_DEPLOYED:: Waiting for Actuator & elatch status!!!"));
+      }
+      break;
+
+    case DOOR_HANDLE_WAIT_OPEN:
+
+      Check_Disable_Locking();
+
+      // Incase of Retract switch pressed or external lock capa sensor pressed, retract the handle
+      if (latchSwitchState && (buttonRetract.isPressed() || extcapaSensor.getCurrentState())) {
+        doorHandleState = DOOR_HANDLE_RETRACT;
+      } else {  // just fade in and fade out LED
+        if (ledCtrl.getState() == LED_ON)
+          ledCtrl.fadeLedIn(LED_FADE_IN_TIME_MS);
+        else if (ledCtrl.getState() == LED_OFF)
+          ledCtrl.fadeLedOut(LED_FADE_OUT_TIME_MS);
+      }
+      break;
+
+    case DOOR_HANDLE_OPEN:
+      Check_Disable_Locking();
+      break;
+
+    default:
+      Serial.println(F("Main state machine error"));
+      break;
+  }
+}

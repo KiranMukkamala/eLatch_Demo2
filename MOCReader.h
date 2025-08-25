@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 #include "ADCReader.h"
-#include "global.h"
 #include "constants.h"
 
 

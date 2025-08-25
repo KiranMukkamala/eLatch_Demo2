@@ -2,11 +2,7 @@
 #define LEDCONTROL_H
 
 #include <Arduino.h>
-
-#define LED_PWM_PIN A0
-#define LED_MAX_BRIGHTNESS 255
-#define LED_FADE_IN_TIME_MS 1500
-#define LED_FADE_OUT_TIME_MS 600
+#include "constants.h"
 
 enum LedState {
   LED_OFF,

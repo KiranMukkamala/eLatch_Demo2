@@ -7,13 +7,11 @@
 #define MOTOR_RPWM_PIN 9
 #define MOTOR_LPWM_PIN 10
 
-#define RETRACT_TIME_MS   1400
-#define RETRACT_PWM       700
+#define RETRACT_TIME_MS 1400
+#define RETRACT_PWM 700
 
-#define DEPLOY_TIME_MS    800
-#define DEPLOY_PWM        900
-
-
+#define DEPLOY_TIME_MS 800
+#define DEPLOY_PWM 900
 
 // === Motor States ===
 enum MotorState {
@@ -22,6 +20,11 @@ enum MotorState {
   MOTOR_START_RETRACT,
   MOTOR_RUNNING,
   MOTOR_STOPPING
+};
+
+enum MotorInterlock {
+  MOTOR_NOT_BLOCKED = 0,
+  MOTOR_BLOCKED = 1
 };
 
 
@@ -34,6 +37,7 @@ public:
              unsigned long deployDur, unsigned long retractDur);
 
   void update();
+  bool setState(MotorState value);
   void triggerAction(int16_t value);
   MotorState getState() const;
 
@@ -49,6 +53,8 @@ private:
 
   MotorState state = MOTOR_STOP;
   MotorState commandState = MOTOR_STOP;
+  MotorInterlock interlockState = MOTOR_NOT_BLOCKED;
+
   unsigned long startTime = 0;
 
   void enable(bool on);
@@ -60,4 +66,4 @@ private:
 
 extern MotorController actuator;
 
-#endif // MOTOR_CONTROLLER_H
+#endif  // MOTOR_CONTROLLER_H

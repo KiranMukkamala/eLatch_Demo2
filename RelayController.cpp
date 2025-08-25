@@ -2,7 +2,7 @@
 #include "RelayController.h"
 
 /*==== Class Initialization ===*/
-RelayController relaycontroller;
+RelayController eLatchMotorDriver;
 
 void RelayController::begin(uint8_t r, uint8_t l) {
   rpwmPin = r;
@@ -19,7 +19,7 @@ void RelayController::begin(uint8_t r, uint8_t l) {
 
   cwDuration = RUN_TIME_CW;
   ccwDuration = RUN_TIME_CCW;
-  stopDuration = STOP_TIME;
+  stopDuration = ELATCH_MOTOR_STOP_TIME;
 
   runningDirection = RELAY_STOP;
 
