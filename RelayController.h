@@ -25,6 +25,7 @@ public:
   void update();
   bool setState(RelayState value);
   RelayState getState(void) const;
+  RelayState getRecentRun() const;
 
   // New setters for timeouts and PWM
   void setCwTimeout(uint32_t timeout) {
@@ -33,12 +34,6 @@ public:
   void setCcwTimeout(uint32_t timeout) {
     ccwDuration = timeout;
   }
-//   void setCwPwm(uint16_t pwm) {
-//     cwPwm = pwm;
-//   }
-//   void setCcwPwm(uint16_t pwm) {
-//     ccwPwm = pwm;
-//   }
 
 private:
   uint8_t rpwmPin;
@@ -55,6 +50,7 @@ private:
 
   // NEW: tracks which direction is running in RUNNING state
   RelayState runningDirection = RELAY_STOP;
+  RelayState prevrunningDirection = RELAY_STOP;
 
   uint32_t startTime = 0;
 

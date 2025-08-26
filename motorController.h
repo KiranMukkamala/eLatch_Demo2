@@ -2,16 +2,7 @@
 #define MOTORCONTROLLER_H
 
 #include <Arduino.h>
-
-#define MOTOR_ENABLE_PIN 8
-#define MOTOR_RPWM_PIN 9
-#define MOTOR_LPWM_PIN 10
-
-#define RETRACT_TIME_MS 1400
-#define RETRACT_PWM 700
-
-#define DEPLOY_TIME_MS 800
-#define DEPLOY_PWM 900
+#include "constants.h"
 
 // === Motor States ===
 enum MotorState {

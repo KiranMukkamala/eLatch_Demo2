@@ -6,23 +6,21 @@
 #define EXT_CAPA_PWR_PIN 2  // OUT: External CAPA Sensor enable
 #define EXT_CAPA_SEN_PIN 3  // IN: External CAPA Sensor read
 
-#define HBRIDGE_ENABLE_PIN 8  // OUT: Actuator enable
-#define HBRIDGE_RPWM_PIN 9    // OUT: Actuator CW
-#define HBRIDGE_LPWM_PIN 10   // OUT: Actuator CCW
+#define MOTOR_ENABLE_PIN 8 // OUT: Actuator enable
+#define MOTOR_RPWM_PIN 9  // OUT: Actuator CW
+#define MOTOR_LPWM_PIN 10 // OUT: Actuator CCW
+// #define HBRIDGE_ENABLE_PIN 8  // OUT: Actuator enable
+// #define HBRIDGE_RPWM_PIN 9    // OUT: Actuator CW
+// #define HBRIDGE_LPWM_PIN 10   // OUT: Actuator CCW
 #define E_LATCH_SW_PIN 12     // IN: eLatch Switch read
 
 #define INR_CAPA_PWR_PIN 11  // OUT: Inner CAPA Sensor enable
 #define INR_CAPA_SEN_PIN 5   // IN: Inner CAPA Sensor read
 
-#define DEPLOY_SW_PIN 6   //IN: Deploy Switch read
-#define RETRACT_SW_PIN 7  //IN: Retract Switch read
-
-#define RELAY_SW_PIN1 4   // OUT 1
-#define RELAY_SW_PIN2 A5  // OUT 2
-
+#define DEPLOY_SW_PIN 7   //IN: Deploy Switch read
+#define RETRACT_SW_PIN 6  //IN: Retract Switch read
 
 #define LED_PWM_PIN A0  // OUT LED indications
-
 
 #define RELAY_SW_CW_PIN A5 // CW 
 #define RELAY_SW_CCW_PIN 4 // CCW
@@ -104,6 +102,14 @@
 #define LED_FADE_IN_TIME_MS 1500
 #define LED_FADE_OUT_TIME_MS 600
 
+#define RETRACT_TIME_MS 1400
+#define RETRACT_PWM 700
+
+#define DEPLOY_TIME_MS 1200
+#define DEPLOY_PWM 900
+
+#define NB_OPEN_RETRY_COUNT 2
+
 //=== DOOR Handle state ===
 enum DoorHandleState {
   DOOR_HANDLE_INIT = 0, 
@@ -111,8 +117,9 @@ enum DoorHandleState {
   DOOR_HANDLE_DEPLOYED = 2,
   DOOR_HANDLE_WAIT_OPEN = 3,
   DOOR_HANDLE_OPEN = 4,
-  DOOR_HANDLE_LATCHED = 5,
-  DOOR_HANDLE_RETRACT = 6
+  DOOR_HANDLE_WAIT_TO_LATCH =5,
+  DOOR_HANDLE_LATCHED = 6,
+  DOOR_HANDLE_RETRACT = 7
 };
 
 #endif

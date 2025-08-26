@@ -21,7 +21,8 @@ void RelayController::begin(uint8_t r, uint8_t l) {
   ccwDuration = RUN_TIME_CCW;
   stopDuration = ELATCH_MOTOR_STOP_TIME;
 
-  runningDirection = RELAY_STOP;
+  runningDirection = RELAY_STOP; // set to  CW, CCW or STOP
+  prevrunningDirection = RELAY_STOP; // set to  CW, CCW
 
   Serial.println(F("H-Bridge driver initialization completed"));
 }
@@ -38,6 +39,10 @@ bool RelayController::setState(RelayState value) {
 
 RelayState RelayController::getState() const {
   return commandState;
+}
+
+RelayState RelayController::getRecentRun() const {
+  return prevrunningDirection;
 }
 
 void RelayController::update() {
@@ -110,6 +115,7 @@ void RelayController::update() {
         driveCW();
         startTime = millis();
         runningDirection = RELAY_CW;  // Remember direction for timeout
+        prevrunningDirection = RELAY_CW; // Remember direction for previous run
         commandState = RELAY_RUNNING;
         Serial.println(F("RELAY_CW"));
         interlockState = RELAY_BLOCKED;
@@ -123,6 +129,7 @@ void RelayController::update() {
         driveCCW();
         startTime = millis();
         runningDirection = RELAY_CCW;  // Remember direction for timeout
+        prevrunningDirection = RELAY_CCW; // Remember direction for previous run
         commandState = RELAY_RUNNING;
         Serial.println(F("RELAY_CCW"));
         interlockState = RELAY_BLOCKED;

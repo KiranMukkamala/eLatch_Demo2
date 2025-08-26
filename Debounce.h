@@ -1,3 +1,4 @@
+#include <stdint.h>
 // ****************************************************************************
 // Title		: Debounce
 // File Name	: 'Debounce.h'
@@ -35,6 +36,7 @@ class Debounce
 		uint8_t isDown(void);
 		uint8_t isReleased(void);
 		uint8_t stateChanged(void);
+		uint8_t getswitchStatus(void);
 
 	protected:
 
@@ -43,6 +45,7 @@ class Debounce
 		uint8_t _button=0;
 		uint8_t _active=0;
 		uint8_t _prevState=0;          // Track previous button state
+		uint8_t _switchStatus=0;       // switch status
 
 		uint8_t readButton(void);
 };
