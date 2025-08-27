@@ -289,15 +289,18 @@ void loop(void) {
   // MainStateMachineRun();
   RefreshHandleState();
 
+  ledCtrl.updateLedState();
   // Serial.println("Current Handle state :: " + String(doorHandleState));
 
   // refresh the actuator state
   actuator.update();
 
+  ledCtrl.updateLedState();
+
   // refresh elatch motor
   eLatchMotorDriver.update();
 
-  ledCtrl.updateLedState();
+
 
   //hbridge.setState(HBRIDGE_CW);    // Starts CW movement with these parameters
 }  //end main loop
@@ -312,6 +315,9 @@ void Check_Disable_Locking(void) {
     extcapaSensor.enable(true);
     Disable_Locking = false;
   }
+    // Capa sensor update
+  inrcapaSensor.update();
+  extcapaSensor.update();
 }
 
 // Vaidation of DOOR Handle state transitions with previous state
@@ -361,7 +367,7 @@ void setDoorHandleState(DoorHandleState state) {
           Nb_Open_Attempt = 0;
           Serial.println(F("Entering DOOR_HANDLE_OPEN"));
         } else {
-          Serial.println(F("Opening of DOOR HANDLE before deployment is not correct!!!"));
+          Serial.println(F("Opening of DOOR HANDLE is not correct at this moment!!!"));
         }
         break;
       case DOOR_HANDLE_WAIT_TO_LATCH:
@@ -457,8 +463,7 @@ void RefreshHandleState(void) {
   // refresh the state machine
   switch (doorHandleState) {
     case DOOR_HANDLE_INIT:
-      // if (latchSwitchState && actuator.setState(MOTOR_START_RETRACT)) // commented to test
-      if (latchSwitchState && actuator.setState(MOTOR_START_RETRACT))
+      if (latchSwitchState && actuator.setState(MOTOR_START_RETRACT) && eLatchMotorDriver.setState(RELAY_CCW))
         setDoorHandleState(DOOR_HANDLE_CLOSED);
       else
         Serial.println(F("DOOR_HANDLE_INIT:: Waiting for DOOR close status"));
@@ -541,6 +546,9 @@ void RefreshHandleState(void) {
       }
       break;
     case DOOR_HANDLE_WAIT_TO_LATCH:
+      inrcapaSensor.enable(false);
+      extcapaSensor.enable(false);
+      
       if (latchSwitchState) {
         if (ledCtrl.getState() == LED_OFF)
           ledCtrl.ledOn();
@@ -548,6 +556,8 @@ void RefreshHandleState(void) {
       }
       break;
     case DOOR_HANDLE_LATCHED:
+      inrcapaSensor.enable(true);
+      extcapaSensor.enable(true);
       Check_Disable_Locking();
 
       // Incase of Retract switch pressed or external lock capa sensor pressed, retract the handle
