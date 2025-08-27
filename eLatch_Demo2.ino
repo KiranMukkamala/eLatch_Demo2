@@ -234,7 +234,7 @@ void setup() {
   userPotiRetract.begin(ADC_USER_RETRACT_PIN, NUM_SAMPLES, ADC_REF_VOLTAGE);
 
   //led door handle
-  // ledCtrl.begin(LED_PWM_PIN, LED_MAX_BRIGHTNESS);
+  ledCtrl.begin(LED_PWM_PIN, LED_MAX_BRIGHTNESS);
 
   // initialization of main state machine
   doorHandleState = DOOR_HANDLE_INIT;
@@ -315,7 +315,7 @@ void Check_Disable_Locking(void) {
     extcapaSensor.enable(true);
     Disable_Locking = false;
   }
-    // Capa sensor update
+  // Capa sensor update
   inrcapaSensor.update();
   extcapaSensor.update();
 }
@@ -482,6 +482,8 @@ void RefreshHandleState(void) {
         buttonDeploy.update();
         // Serial.println("DOOR_HANDLE_CLOSED:: Waiting for Trigger :: " + String(buttonDeploy.getswitchStatus()) + " " + String(actuator.getState()));
       }
+      if (ledCtrl.getState() == LED_OFF)
+        ledCtrl.ledOn();
       break;
 
     case DOOR_HANDLE_RETRACT:
@@ -548,11 +550,14 @@ void RefreshHandleState(void) {
     case DOOR_HANDLE_WAIT_TO_LATCH:
       inrcapaSensor.enable(false);
       extcapaSensor.enable(false);
-      
+
       if (latchSwitchState) {
         if (ledCtrl.getState() == LED_OFF)
           ledCtrl.ledOn();
         setDoorHandleState(DOOR_HANDLE_LATCHED);
+      } else {
+        if (ledCtrl.getState() == LED_ON)
+          ledCtrl.ledOff();
       }
       break;
     case DOOR_HANDLE_LATCHED:
@@ -563,8 +568,12 @@ void RefreshHandleState(void) {
       // Incase of Retract switch pressed or external lock capa sensor pressed, retract the handle
       if (latchSwitchState && (buttonRetract.getswitchStatus() || extcapaSensor.getCurrentState())) {
         setDoorHandleState(DOOR_HANDLE_RETRACT);
-      } else if (ledCtrl.getState() == LED_OFF)
-        ledCtrl.ledOn();
+      } else {  // just fade in and fade out LED
+        if (ledCtrl.getState() == LED_ON)
+          ledCtrl.fadeLedIn(LED_FADE_IN_TIME_MS);
+        else if (ledCtrl.getState() == LED_OFF)
+          ledCtrl.fadeLedOut(LED_FADE_OUT_TIME_MS);
+      }
       break;
 
     default:
