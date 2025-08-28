@@ -8,55 +8,57 @@
 
 // Structure to hold all relevant MOC data for the callback
 struct MOCSignalData {
-    int16_t reference;
-    int16_t value;
-    int16_t diff;
-    int16_t unlockAnalogInput;
-    int16_t openAnalogInput;
-    int16_t unlockThreshold;
-    int16_t openThreshold;
-    int16_t oldest;
-    int16_t mid;
-    int16_t newest;
+  int16_t reference;
+  int16_t value;
+  int16_t diff;
+  int16_t unlockAnalogInput;
+  int16_t openAnalogInput;
+  int16_t unlockThreshold;
+  int16_t openThreshold;
+  int16_t oldest;
+  int16_t mid;
+  int16_t newest;
 };
 
 class MOCReader {
 public:
-    MOCReader();
+  MOCReader();
 
-    void begin();
-    void update();
+  void begin();
+  void update();
 
-    using CallbackType = void (*)(const MOCSignalData&);
-    void setChangeCallback(CallbackType cb);
-    void setDirectionInverted(bool inverted);           //not used
+  using CallbackType = void (*)(const MOCSignalData&);
+  void setChangeCallback(CallbackType cb);
+  void setDirectionInverted(bool inverted);  //not used
 
-    // --- User threshold helpers ---
-    int16_t userUnlockThreshold(int16_t baseValue, int16_t analogInput);
-    int16_t userOpenThreshold(int16_t baseValue, int16_t analogInput);
+  // --- User threshold helpers ---
+  int16_t userUnlockThreshold(int16_t baseValue, int16_t analogInput);
+  int16_t userOpenThreshold(int16_t baseValue, int16_t analogInput);
 
 private:
-    void readMOCPacket();
-    void processPacket(char* packet);
-    void processMOCData(int16_t reference, int16_t value);
+  void readMOCPacket();
+  void processPacket(char* packet);
+  void processMOCData(int16_t reference, int16_t value);
 
-    char packetBuffer[PACKET_BUFFER_SIZE];
-    uint8_t packetIndex;
-    bool packetStarted;
+  char packetBuffer[PACKET_BUFFER_SIZE];
+  uint8_t packetIndex;
+  bool packetStarted;
 
-    int16_t samples[SAMPLE_COUNT];
-    uint8_t sampleIndex;
+  int16_t samples[SAMPLE_COUNT];
+  uint8_t sampleIndex;
 
-    bool directionInverted;
-    bool prevUpperTrig;
-    bool prevLowerTrig;
+  bool directionInverted;
+  bool prevUpperTrig;
+  bool prevLowerTrig;
 
-    bool triggerActive;
-    enum { NO_TRIGGER, UPPER_TRIGGER, LOWER_TRIGGER } triggerType;
+  bool triggerActive;
+  enum { NO_TRIGGER,
+         UPPER_TRIGGER,
+         LOWER_TRIGGER } triggerType;
 
-    CallbackType onSignificantChange;
+  CallbackType onSignificantChange;
 };
 
 extern MOCReader mocReader;
 
-#endif // MOCREADER_H
+#endif  // MOCREADER_H

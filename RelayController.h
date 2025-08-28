@@ -40,8 +40,8 @@ private:
   uint8_t lpwmPin;
 
   // Store timeout per direction
-  uint16_t cwDuration = RUN_TIME_CW;
-  uint16_t ccwDuration = RUN_TIME_CCW;
+  uint16_t cwDuration = ELATCH_MOTOR_RUN_TIME_CW;
+  uint16_t ccwDuration = ELATCH_MOTOR_RUN_TIME_CCW;
   uint16_t stopDuration = ELATCH_MOTOR_STOP_TIME;
 
   RelayState commandState = RELAY_STOP;

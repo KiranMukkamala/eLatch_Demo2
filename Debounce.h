@@ -22,32 +22,31 @@
 #define DEBOUNCE_H
 
 
-class Debounce
-{
-	public:
-		// Constructors
-		Debounce(uint8_t buttonPin);		// Default active HIGH logic
+class Debounce {
+public:
+	// Constructors
+	Debounce(uint8_t buttonPin);  // Default active HIGH logic
 
-		Debounce(uint8_t buttonPin, uint8_t activeLevel);
+	Debounce(uint8_t buttonPin, uint8_t activeLevel);
 
-		void update(void);
-		uint8_t isPressed(void);
-		uint8_t isUp(void);
-		uint8_t isDown(void);
-		uint8_t isReleased(void);
-		uint8_t stateChanged(void);
-		uint8_t getswitchStatus(void);
+	void update(void);
+	uint8_t isPressed(void);
+	uint8_t isUp(void);
+	uint8_t isDown(void);
+	uint8_t isReleased(void);
+	uint8_t stateChanged(void);
+	uint8_t getswitchStatus(void);
 
-	protected:
+protected:
 
-	private:
-		uint16_t _buttonHistory=0;     // Changed to 16-bit history
-		uint8_t _button=0;
-		uint8_t _active=0;
-		uint8_t _prevState=0;          // Track previous button state
-		uint8_t _switchStatus=0;       // switch status
+private:
+	uint16_t _buttonHistory = 0;  // Changed to 16-bit history
+	uint8_t _button = 0;
+	uint8_t _active = 0;
+	uint8_t _prevState = 0;     // Track previous button state
+	uint8_t _switchStatus = 0;  // switch status
 
-		uint8_t readButton(void);
+	uint8_t readButton(void);
 };
 
-#endif										// DEBOUNCE_H
+#endif  // DEBOUNCE_H

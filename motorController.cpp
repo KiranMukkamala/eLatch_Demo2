@@ -42,6 +42,7 @@ void MotorController::update() {
       state = MOTOR_RUNNING;
       commandState = MOTOR_START_DEPLOY;
       interlockState = MOTOR_BLOCKED;
+      Serial.println(F("Actuator Deploying."));
       break;
 
     case MOTOR_START_RETRACT:
@@ -53,12 +54,13 @@ void MotorController::update() {
       state = MOTOR_RUNNING;
       commandState = MOTOR_START_RETRACT;
       interlockState = MOTOR_BLOCKED;
+      Serial.println(F("Actuator Retracting."));
       break;
 
     case MOTOR_RUNNING:
       if ((millis() - startTime >= deployDuration && commandState == MOTOR_START_DEPLOY) || (millis() - startTime >= retractDuration && commandState == MOTOR_START_RETRACT)) {
         state = MOTOR_STOPPING;
-        Serial.println(F("Motor run complete."));
+        // Serial.println(F("Motor run complete."));
       }
       break;
 
@@ -67,7 +69,7 @@ void MotorController::update() {
       enable(false);
       state = MOTOR_STOP;
       commandState = MOTOR_STOP;
-      Serial.println(F("Motor stopped."));
+      Serial.println(F("Actuator stopped."));
       break;
   }
 }
@@ -127,7 +129,7 @@ MotorState MotorController::getState() const {
 
 bool MotorController::setState(MotorState value) {
   if (interlockState != MOTOR_BLOCKED) {
-    Serial.println(String(F("Motor is unblocked, setState changing to ")) + String(value));
+    // Serial.println(String(F("Motor is unblocked, setState changing to ")) + String(value));
     state = value;
     return true;
   }

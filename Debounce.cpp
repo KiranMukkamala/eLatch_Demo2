@@ -65,11 +65,10 @@ void Debounce::update(void) {
 	_buttonHistory |= readButton();          // Add new reading
 	// Update the previous state for state change detection
 	_prevState = isDown();
-	if(isPressed()){
-		
-	}
-	else 
-	isReleased();
+	if (isPressed()) {
+
+	} else
+		isReleased();
 }
 
 uint8_t Debounce::isPressed(void) {

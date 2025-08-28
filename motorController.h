@@ -29,7 +29,6 @@ public:
 
   void update();
   bool setState(MotorState value);
-  void triggerAction(int16_t value);
   MotorState getState() const;
 
 private:
@@ -53,6 +52,7 @@ private:
   void driveCCW();
   void stop();
   void setupHighFreqPWM();
+  void triggerAction(int16_t value);
 };
 
 extern MotorController actuator;

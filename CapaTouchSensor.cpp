@@ -14,7 +14,7 @@ void CapaTouchSensor::begin(uint8_t enPin, uint8_t inputPin) {
   risingEdge = false;
   fallingEdge = false;
 
-   Serial.println(F("Capacitive proximity driver initialization completed"));
+  Serial.println(F("Capacitive proximity driver initialization completed"));
 }
 
 void CapaTouchSensor::update() {

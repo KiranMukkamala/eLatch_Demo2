@@ -17,19 +17,19 @@ void RelayController::begin(uint8_t r, uint8_t l) {
   lastCommandState = commandState;
   interlockState = RELAY_NON_BLOCKED;
 
-  cwDuration = RUN_TIME_CW;
-  ccwDuration = RUN_TIME_CCW;
+  cwDuration = ELATCH_MOTOR_RUN_TIME_CW;
+  ccwDuration = ELATCH_MOTOR_RUN_TIME_CW;
   stopDuration = ELATCH_MOTOR_STOP_TIME;
 
   runningDirection = RELAY_STOP; // set to  CW, CCW or STOP
   prevrunningDirection = RELAY_STOP; // set to  CW, CCW
 
-  Serial.println(F("H-Bridge driver initialization completed"));
+  Serial.println(F("Elatch Motor driver initialization completed"));
 }
 
 bool RelayController::setState(RelayState value) {
   if (interlockState != RELAY_BLOCKED) {
-    Serial.println(String(F("Relay is unblocked, setState changing to ")) + String(value));
+    // Serial.println(String(F("Relay is unblocked, setState changing to ")) + String(value));
     commandState = value;
     return true;
   }
@@ -48,41 +48,41 @@ RelayState RelayController::getRecentRun() const {
 void RelayController::update() {
   // State machine transitions for checking right transitions allowed
   if (commandState != lastCommandState) {
-    Serial.println(String(F("Relay update commandState changing from ")) + String(lastCommandState) + String(F(" to ")) + String(commandState));
+    // Serial.println(String(F("Relay update commandState changing from ")) + String(lastCommandState) + String(F(" to ")) + String(commandState));
     switch (commandState) {
       case RELAY_INIT:
         if (lastCommandState == RELAY_INIT) {
-          Serial.println(F("Entering RELAY_INIT"));
+          // Serial.println(F("Entering RELAY_INIT"));
           lastCommandState = commandState;
         }
         break;
 
       case RELAY_STOP:
         if (lastCommandState == RELAY_RUNNING || lastCommandState == RELAY_INIT) {
-          Serial.println(F("Relay state changing to STOP"));
+          // Serial.println(F("Relay state changing to STOP"));
           lastCommandState = commandState;
         }
         break;
       case RELAY_CW:
         if (lastCommandState == RELAY_STOP) {
-          Serial.println(F("Relay state changing to CW"));
+          // Serial.println(F("Relay state changing to CW"));
           lastCommandState = commandState;
         }
         break;
       case RELAY_CCW:
         if (lastCommandState == RELAY_STOP) {
-          Serial.println(F("Relay state changing to CCW"));
+          // Serial.println(F("Relay state changing to CCW"));
           lastCommandState = commandState;
         }
         break;
       case RELAY_RUNNING:
         if (lastCommandState == RELAY_CW || lastCommandState == RELAY_CCW) {
-          Serial.println(F("Relay state changing to RUNNING"));
+          // Serial.println(F("Relay state changing to RUNNING"));
           lastCommandState = commandState;
         }
         break;
       default:
-        Serial.println(F("Unknown H-Bridge state!"));
+        Serial.println(F("Unknown Relay state!"));
         break;
     }
   }
@@ -143,13 +143,13 @@ void RelayController::update() {
         //Serial.println(String("Time to run ") + String(cwDuration) + String("Start time: ") + String(startTime) + String("Current time") + String(millis()) );
         if (millis() - startTime >= cwDuration) {
           commandState = RELAY_STOP;
-          Serial.println(F("CW timeout reached. Stopping."));
+          // Serial.println(F("CW timeout reached. Stopping."));
           startTime = millis();  //for stopping time
         }
       } else if (runningDirection == RELAY_CCW) {
         if (millis() - startTime >= ccwDuration) {
           commandState = RELAY_STOP;
-          Serial.println(F("CCW timeout reached. Stopping."));
+          // Serial.println(F("CCW timeout reached. Stopping."));
           startTime = millis();  //for stopping time
         }
       }

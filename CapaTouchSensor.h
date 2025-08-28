@@ -2,7 +2,7 @@
 #define CAPATOUCHSENSOR_H
 
 #include <Arduino.h>
-#include  "constants.h"
+#include "constants.h"
 
 
 
@@ -27,4 +27,4 @@ private:
 
 // extern CapaTouchSensor capaSensor;
 
-#endif // CAPA_TOUCH_SENSOR_H
+#endif  // CAPA_TOUCH_SENSOR_H
