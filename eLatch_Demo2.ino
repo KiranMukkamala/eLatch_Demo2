@@ -152,38 +152,25 @@ void onMOCPull(const MOCSignalData& data) {
       triggerActive = false;
       // elatch.lock();  //come back to lock state
     }
-  // Plotter code
-  if (latchSwitchState) {
-    Serial.print("DOOR_LOCK_STATUS:");
-    Serial.print(String(data.unlockThreshold + 300));
-  } else {
-    Serial.print("DOOR_LOCK_STATUS:");
-    Serial.print(String(data.unlockThreshold - 100));
-  }
-  if (extcapaSensor.getCurrentState()) {
-    Serial.print("\t");
-    Serial.print("EXT_CAPA_STATUS:");
-    Serial.print(String(data.unlockThreshold + 200));
-  } else {
-    Serial.print("\t");
-    Serial.print("EXT_CAPA_STATUS:");
-    Serial.print(String(data.unlockThreshold - 200));
-  }
-  if (inrcapaSensor.getCurrentState()) {
-    Serial.print("\t");
-    Serial.print("INN_CAPA_STATUS:");
-    Serial.print(String(data.unlockThreshold + 100));
-  } else {
-    Serial.print("\t");
-    Serial.print("INN_CAPA_STATUS:");
-    Serial.print(String(data.unlockThreshold - 300));
-  }
+    
+  // Serial Port Plotter v1.3.0 - Data Output
+  // Door Lock Status
+  Serial.print("$DOOR_LOCK_STATUS:");
+  Serial.print(latchSwitchState ? data.unlockThreshold + 300 : data.unlockThreshold - 100);
 
-  Serial.print("\t");
-  Serial.print("MOC_THRESHOLD:");
+  // External Capacitive Sensor Status
+  Serial.print("\tEXT_CAPA_STATUS:");
+  Serial.print(extcapaSensor.getCurrentState() ? data.unlockThreshold + 200 : data.unlockThreshold - 200);
+
+  // Internal Capacitive Sensor Status
+  Serial.print("\tINN_CAPA_STATUS:");
+  Serial.print(inrcapaSensor.getCurrentState() ? data.unlockThreshold + 100 : data.unlockThreshold - 300);
+
+  // Threshold and Pressure Data
+  Serial.print("\tMOC_THRESHOLD:");
   Serial.print(data.unlockThreshold);
-  Serial.print("\t");
-  Serial.print("MOC_PRESSUERE:");
+
+  Serial.print("\tMOC_PRESSURE:");
   Serial.println(abs(data.diff));
 }
 
