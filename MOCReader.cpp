@@ -48,7 +48,7 @@ void MOCReader::readMOCPacket() {
         } else {
           packetStarted = false;
           packetIndex = 0;
-          Serial.println(F("Packet overflow. Packet discarded."));
+         // Serial.println(F("Packet overflow. Packet discarded."));
         }
       }
     }
@@ -59,7 +59,7 @@ void MOCReader::readMOCPacket() {
   }
 
   if (timeout.isElapsed(TIMEOUT_MOC_CONNECTION)) {
-    Serial.println(F("MOC Serial Connection Lost!"));
+   // Serial.println(F("MOC Serial Connection Lost!"));
     timeout.cancel(TIMEOUT_MOC_CONNECTION);
   }
 }
@@ -75,7 +75,7 @@ void MOCReader::processPacket(char* packet) {
     int16_t value = dataFrame[1];
     processMOCData(reference, value);
   } else {
-    Serial.println(F("Malformed packet received."));
+   // Serial.println(F("Malformed packet received."));
   }
 }
 

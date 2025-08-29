@@ -82,7 +82,7 @@ void RelayController::update() {
         }
         break;
       default:
-        Serial.println(F("Unknown Relay state!"));
+       // Serial.println(F("Unknown Relay state!"));
         break;
     }
   }
@@ -100,7 +100,7 @@ void RelayController::update() {
       // Serial.println(F("RELAY_STOP"));
       stop();
       if (millis() - startTime >= stopDuration) {
-        //Serial.println(F("Stopping timeout reached"));
+        // Serial.println(F("Stopping timeout reached"));
         interlockState = RELAY_NON_BLOCKED;
         runningDirection = RELAY_STOP;  // Clear running direction
       }
@@ -117,7 +117,7 @@ void RelayController::update() {
         runningDirection = RELAY_CW;  // Remember direction for timeout
         prevrunningDirection = RELAY_CW; // Remember direction for previous run
         commandState = RELAY_RUNNING;
-        Serial.println(F("RELAY_CW"));
+       // Serial.println(F("RELAY_CW"));
         interlockState = RELAY_BLOCKED;
       }
       break;
@@ -131,7 +131,7 @@ void RelayController::update() {
         runningDirection = RELAY_CCW;  // Remember direction for timeout
         prevrunningDirection = RELAY_CCW; // Remember direction for previous run
         commandState = RELAY_RUNNING;
-        Serial.println(F("RELAY_CCW"));
+       // Serial.println(F("RELAY_CCW"));
         interlockState = RELAY_BLOCKED;
       }
       break;
@@ -156,7 +156,7 @@ void RelayController::update() {
       break;
 
     default:
-      Serial.println(F("Something went wrong with Relay state machine"));
+     // Serial.println(F("Something went wrong with Relay state machine"));
       break;
   }  //end switch
 }

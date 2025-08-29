@@ -23,7 +23,7 @@ void MotorController::begin(uint8_t en, uint8_t r, uint8_t l,
   setupHighFreqPWM();
   stop();
 
-  Serial.println(F("Actuator driver initialization completed"));
+  // Serial.println(F("Actuator driver initialization completed"));
 }
 
 void MotorController::update() {
@@ -33,28 +33,23 @@ void MotorController::update() {
       break;
 
     case MOTOR_START_DEPLOY:
-      // logger.verbose("Motor will run in deploy for time: " + String(deployDuration));
-      // logger.verbose("Motor will run in deploy at speed of: " + String(deployPwm));
-
       enable(true);
       driveCW();
       startTime = millis();
       state = MOTOR_RUNNING;
       commandState = MOTOR_START_DEPLOY;
       interlockState = MOTOR_BLOCKED;
-      Serial.println(F("Actuator Deploying."));
+      // Serial.println(F("Actuator Deploying."));
       break;
 
     case MOTOR_START_RETRACT:
-      // logger.verbose("Motor will run in retract for time: " + String(retractDuration));
-      // logger.verbose("Motor will run in retract at speed of: " + String(retractPwm));
       enable(true);
       driveCCW();
       startTime = millis();
       state = MOTOR_RUNNING;
       commandState = MOTOR_START_RETRACT;
       interlockState = MOTOR_BLOCKED;
-      Serial.println(F("Actuator Retracting."));
+      // Serial.println(F("Actuator Retracting."));
       break;
 
     case MOTOR_RUNNING:
@@ -69,7 +64,7 @@ void MotorController::update() {
       enable(false);
       state = MOTOR_STOP;
       commandState = MOTOR_STOP;
-      Serial.println(F("Actuator stopped."));
+      // Serial.println(F("Actuator stopped."));
       break;
   }
 }
