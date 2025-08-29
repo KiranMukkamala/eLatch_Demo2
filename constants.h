@@ -81,13 +81,9 @@
 
 
 #define ELATCH_MOTOR_RUN_TIME_CW 300
-#define ELATCH_MOTOR_RUN_TIME_CCW 300
+#define ELATCH_MOTOR_RUN_TIME_CCW 200
 
 #define ELATCH_MOTOR_STOP_TIME 500
-
-#define DEFAULT_CW_PWM 1023
-#define DEFAULT_CCW_PWM 1023
-
 
 // ADC Reader constants for Threshold reading
 #define ADC_USER_DEPLOY_PIN A2
