@@ -30,8 +30,11 @@ void MOCReader::update() {
 }
 
 void MOCReader::readMOCPacket() {
-  while (Serial1.available()) {
+  const int MAX_BYTES_PER_CALL = 8; // Lower for better responsiveness
+  int bytesProcessed = 0;
+  while (Serial1.available() && bytesProcessed < MAX_BYTES_PER_CALL) {
     int8_t c = Serial1.read();
+    bytesProcessed++;
 
     if (c == '$') {
       packetStarted = true;
@@ -105,7 +108,7 @@ void MOCReader::processMOCData(int16_t reference, int16_t value) {
   int16_t unlockAnalogInput = userPotiDeploy.getAverage();
   int16_t openAnalogInput = userPotiRetract.getAverage();
   int16_t unlockThreshold = userUnlockThreshold(reference, unlockAnalogInput);
-  int16_t openThreshold = userOpenThreshold(reference, openAnalogInput);
+  // int16_t openThreshold = userOpenThreshold(reference, openAnalogInput);
 
 
   // Populate struct and call callback
@@ -117,7 +120,7 @@ void MOCReader::processMOCData(int16_t reference, int16_t value) {
       unlockAnalogInput,
       openAnalogInput,
       unlockThreshold,
-      openThreshold,
+      // openThreshold,
       oldest,
       mid,
       newest

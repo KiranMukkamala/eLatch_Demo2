@@ -14,7 +14,7 @@ struct MOCSignalData {
   int16_t unlockAnalogInput;
   int16_t openAnalogInput;
   int16_t unlockThreshold;
-  int16_t openThreshold;
+  // int16_t openThreshold;
   int16_t oldest;
   int16_t mid;
   int16_t newest;
