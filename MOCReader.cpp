@@ -77,9 +77,10 @@ void MOCReader::processPacket(char* packet) {
     int16_t reference = dataFrame[0];
     int16_t value = dataFrame[1];
     processMOCData(reference, value);
-  } else {
-   // Serial.println(F("Malformed packet received."));
-  }
+  } 
+  // else {
+  //  // Serial.println(F("Malformed packet received."));
+  // }
 }
 
 // Refactored: only collects data, all logic is handled in the callback!

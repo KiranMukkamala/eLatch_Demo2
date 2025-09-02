@@ -3,16 +3,16 @@
 
 // MCU PIN Usage/ Layout
 
-#define EXT_CAPA_PWR_PIN 2  // OUT: External CAPA Sensor enable
-#define EXT_CAPA_SEN_PIN 3  // IN: External CAPA Sensor read
+#define EXT_CAPA_PWR_PIN 11  // OUT: External CAPA Sensor enable
+#define EXT_CAPA_SEN_PIN 5  // IN: External CAPA Sensor read
 
 #define MOTOR_ENABLE_PIN 8  // OUT: Actuator enable
 #define MOTOR_RPWM_PIN 9    // OUT: Actuator CW
 #define MOTOR_LPWM_PIN 10   // OUT: Actuator CCW
 #define E_LATCH_SW_PIN 12   // IN: eLatch Switch read
 
-#define INR_CAPA_PWR_PIN 11  // OUT: Inner CAPA Sensor enable
-#define INR_CAPA_SEN_PIN 5   // IN: Inner CAPA Sensor read
+#define INR_CAPA_PWR_PIN 2  // OUT: Inner CAPA Sensor enable
+#define INR_CAPA_SEN_PIN 3   // IN: Inner CAPA Sensor read
 
 #define DEPLOY_SW_PIN 6   //IN: Deploy Switch read
 #define RETRACT_SW_PIN 7  //IN: Retract Switch read
@@ -56,8 +56,8 @@
 #define PACKET_BUFFER_SIZE 64
 #define SAMPLE_COUNT 1
 
-#define MOC_UNLOCK_THRESHOLD_MIN 1000
-#define MOC_UNLOCK_THRESHOLD_MAX 2100
+#define MOC_UNLOCK_THRESHOLD_MIN 300
+#define MOC_UNLOCK_THRESHOLD_MAX 1800
 #define MOC_OPEN_THRESHOLD_MIN 2101
 #define MOC_OPEN_THRESHOLD_MAX 5000
 
@@ -71,6 +71,7 @@
 // #define TIMEOUT_SERIAL_CONNECTION 2
 // #define TIMEOUT_HANDLE_DEPLOY_DELAY 3
 // #define TIMEOUT_E_LATCH 5
+
 
 
 // Default timeout durations (optional)

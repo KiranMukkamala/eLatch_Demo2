@@ -91,7 +91,7 @@
 #include "motorController.h"
 #include "RelayController.h"
 
-#define DEBUGGING_ENABLED true
+#define DEBUGGING_ENABLED false
 #define SERIAL_DEBUG_SPEED 19200
 
 
@@ -155,23 +155,23 @@ void onMOCPull(const MOCSignalData& data) {
 
   // Serial Port Plotter v1.3.0 - Data Output
   // Door Lock Status
-  // Serial.print("$DOOR_LOCK_STATUS:");
-  // Serial.print(latchSwitchState ? data.unlockThreshold + 300 : data.unlockThreshold - 100);
+  Serial.print("DOOR_LOCK_STATUS:");
+  Serial.print(latchSwitchState ? data.unlockThreshold + 300 : data.unlockThreshold - 100);
 
-  // // External Capacitive Sensor Status
-  // Serial.print("\tEXT_CAPA_STATUS:");
-  // Serial.print(extcapaSensor.getCurrentState() ? data.unlockThreshold + 200 : data.unlockThreshold - 200);
+  // External Capacitive Sensor Status
+  Serial.print("\tEXT_CAPA_STATUS:");
+  Serial.print(extcapaSensor.getCurrentState() ? data.unlockThreshold + 200 : data.unlockThreshold - 200);
 
-  // // Internal Capacitive Sensor Status
-  // Serial.print("\tINN_CAPA_STATUS:");
-  // Serial.print(inrcapaSensor.getCurrentState() ? data.unlockThreshold + 100 : data.unlockThreshold - 300);
+  // Internal Capacitive Sensor Status
+  Serial.print("\tINN_CAPA_STATUS:");
+  Serial.print(inrcapaSensor.getCurrentState() ? data.unlockThreshold + 100 : data.unlockThreshold - 300);
 
-  // // Threshold and Pressure Data
-  // Serial.print("\tMOC_THRESHOLD:");
-  // Serial.print(data.unlockThreshold);
+  // Threshold and Pressure Data
+  Serial.print("\tMOC_THRESHOLD:");
+  Serial.print(data.unlockThreshold);
 
-  // Serial.print("\tMOC_PRESSURE:");
-  // Serial.println(abs(data.diff));
+  Serial.print("\tMOC_PRESSURE:");
+  Serial.println(abs(data.diff));
 }
 
 void updateeLatchSwitch(void) {
@@ -314,6 +314,7 @@ void loop(void) {
 
   t_end = micros();
 
+#if DEBUGGING_ENABLED
   if ((t_end - t_start) > 500) {
     Serial.print("Timing(us): ");
     Serial.print("Buttons=");
@@ -337,6 +338,7 @@ void loop(void) {
     Serial.print(" | Total=");
     Serial.println(t_end - t_start);
   }
+#endif
 }  //end main loop
 
 void Check_Disable_Locking(void) {
