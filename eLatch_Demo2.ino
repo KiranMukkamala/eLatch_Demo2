@@ -266,6 +266,8 @@ void setup() {
 
 void RefreshHandleState(void);
 
+bool directionChange = false;
+
 // === Main Loop ===
 void loop(void) {
   unsigned long t_start = micros();
@@ -305,7 +307,16 @@ void loop(void) {
   t_motor = micros() - t0;
 
   t0 = micros();
+
   actuator.update();
+  if(actuator.setState(MOTOR_START_DEPLOY) && directionChange == true)
+  {
+    directionChange = false;
+  }else
+  if(actuator.setState(MOTOR_START_RETRACT) && directionChange == false) 
+  {
+    directionChange = true;
+  }  
   t_actuator = micros() - t0;
 
   t0 = micros();
