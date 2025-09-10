@@ -30,11 +30,7 @@ public:
 	Debounce(uint8_t buttonPin, uint8_t activeLevel);
 
 	void update(void);
-	uint8_t isPressed(void);
-	uint8_t isUp(void);
-	uint8_t isDown(void);
-	uint8_t isReleased(void);
-	uint8_t stateChanged(void);
+
 	uint8_t getswitchStatus(void);
 
 protected:
@@ -47,6 +43,11 @@ private:
 	uint8_t _switchStatus = 0;  // switch status
 
 	uint8_t readButton(void);
+	uint8_t isPressed(void);
+	uint8_t isUp(void);
+	uint8_t isDown(void);
+	uint8_t isReleased(void);
+	uint8_t stateChanged(void);
 };
 
 #endif  // DEBOUNCE_H

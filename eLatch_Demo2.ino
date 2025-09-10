@@ -90,36 +90,34 @@
 #include "constants.h"
 #include "motorController.h"
 #include "RelayController.h"
+#include "DoorHandleController.h"
 
-#define DEBUGGING_ENABLED false
+#define DEBUGGING_ENABLED true
 #define SERIAL_DEBUG_SPEED 19200
 
+/*====  Main Door Handle Controller object ====*/
+DoorHandleController doorHandleController;
 
-//=== Manual Control of Door Handle Pin Switch ===
+/*==== Object for Actuator motor driver ===*/
+MotorController actuator;
+
+/*==== Object for elatch motor driver ===*/
+RelayController eLatchMotorDriver;
+
+//=== Deploy and Retract Switch Objects ===
 Debounce buttonDeploy(DEPLOY_SW_PIN, LOW);
 Debounce buttonRetract(RETRACT_SW_PIN, LOW);
-bool switchStatusDeploy = false;
-bool switchStatusRetract = false;
 
-// DOOR Handle State
-DoorHandleState doorHandleState = DOOR_HANDLE_INIT;
-// DoorHandleState lastDoorHandleState = DOOR_HANDLE_INIT;
+Debounce buttonDoorHandleDeploy(DEPLOY_HANDLE_SW_PIN, LOW);
 
 //CAPA Sensor objects
 CapaTouchSensor extcapaSensor;
 CapaTouchSensor inrcapaSensor;
-bool Disable_Locking = false;  // for disabling the external capa sensor
 
-//LED contzrol object
+//LED control object
 LEDControl ledCtrl;
-
-//eLatch Switch status
-bool latchSwitchState = false;
-bool risingSwEdge = false;
-bool fallingSwEdge = false;
-bool currentSwState = HIGH;
-bool lastSwState = HIGH;
-uint16_t Nb_Open_Attempt = 0;
+LEDControl ledLockStatus;
+LEDControl ledCapaStatus;
 
 void onMOCPull(const MOCSignalData& data) {
 
@@ -141,7 +139,7 @@ void onMOCPull(const MOCSignalData& data) {
       // Serial.println(String(F("openThreshold: ")) + String(data.openThreshold));
       // Serial.println(F("MOC -> eLatch Open"));
       // elatch.open();  //user had pulled the lever with intention to open
-      setDoorHandleState(DOOR_HANDLE_OPEN);
+      doorHandleController.setState(DOOR_HANDLE_OPEN);
       triggerActive = true;
     }
   } else
@@ -155,37 +153,24 @@ void onMOCPull(const MOCSignalData& data) {
 
   // Serial Port Plotter v1.3.0 - Data Output
   // Door Lock Status
-  Serial.print("DOOR_LOCK_STATUS:");
-  Serial.print(latchSwitchState ? data.unlockThreshold + 300 : data.unlockThreshold - 100);
+  // Serial.print("DOOR_LOCK_STATUS:");
+  // Serial.print(latchSwitchState ? data.unlockThreshold + 300 : data.unlockThreshold - 100);
 
-  // External Capacitive Sensor Status
-  Serial.print("\tEXT_CAPA_STATUS:");
-  Serial.print(extcapaSensor.getCurrentState() ? data.unlockThreshold + 200 : data.unlockThreshold - 200);
+  // // External Capacitive Sensor Status
+  // Serial.print("\tEXT_CAPA_STATUS:");
+  // Serial.print(extcapaSensor.getCurrentState() ? data.unlockThreshold + 200 : data.unlockThreshold - 200);
 
-  // Internal Capacitive Sensor Status
-  Serial.print("\tINN_CAPA_STATUS:");
-  Serial.print(inrcapaSensor.getCurrentState() ? data.unlockThreshold + 100 : data.unlockThreshold - 300);
+  // // Internal Capacitive Sensor Status
+  // Serial.print("\tINN_CAPA_STATUS:");
+  // Serial.print(inrcapaSensor.getCurrentState() ? data.unlockThreshold + 100 : data.unlockThreshold - 300);
 
-  // Threshold and Pressure Data
-  Serial.print("\tMOC_THRESHOLD:");
-  Serial.print(data.unlockThreshold);
+  // // Threshold and Pressure Data
+  // Serial.print("\tMOC_THRESHOLD:");
+  // Serial.print(data.unlockThreshold);
 
-  Serial.print("\tMOC_PRESSURE:");
-  Serial.println(abs(data.diff));
+  // Serial.print("\tMOC_PRESSURE:");
+  // Serial.println(abs(data.diff));
 }
-
-void updateeLatchSwitch(void) {
-  bool rawState = digitalRead(E_LATCH_SW_PIN);
-  risingSwEdge = (rawState && !currentSwState);
-  fallingSwEdge = (!rawState && currentSwState);
-  lastSwState = currentSwState;
-  currentSwState = rawState;
-  // if (lastSwState != currentSwState) {
-  //   Serial.println(String(F("Switch status changed from ")) + String(lastSwState) + String(F(" to ")) + String(currentSwState));
-  // }
-  latchSwitchState = currentSwState;
-}
-
 
 // === Setup ===
 void setup() {
@@ -233,21 +218,14 @@ void setup() {
 
   // Relay to drive elacth
   eLatchMotorDriver.begin(RELAY_SW_CW_PIN, RELAY_SW_CCW_PIN);
-  Nb_Open_Attempt = 0;
 
   // Elatch switch configuration
   pinMode(E_LATCH_SW_PIN, INPUT_PULLUP);
 
-
+  // Configure the PINS for usage
   pinMode(DEPLOY_SW_PIN, INPUT_PULLUP);
   pinMode(RETRACT_SW_PIN, INPUT_PULLUP);
-
-  switchStatusDeploy = digitalRead(DEPLOY_SW_PIN);
-  switchStatusRetract = digitalRead(RETRACT_SW_PIN);
-
-  // if (switchStatusDeploy) Serial.println(F(" Direct read:: Deploy is pressed"));
-
-  // if (switchStatusRetract) Serial.println(F(" Direct read:: Retract is pressed"));
+  pinMode(DEPLOY_HANDLE_SW_PIN, INPUT_PULLUP);
 
   //capa sensor
   extcapaSensor.begin(EXT_CAPA_PWR_PIN, EXT_CAPA_SEN_PIN);
@@ -255,16 +233,18 @@ void setup() {
 
   //led door handle
   ledCtrl.begin(LED_PWM_PIN, LED_MAX_BRIGHTNESS);
+  ledLockStatus.begin(LED_LOCK_STATUS_PIN, LED_MAX_BRIGHTNESS);
+  ledCapaStatus.begin(LED_CAPA_STATUS_PIN, LED_MAX_BRIGHTNESS);
 
-  // initialization of main state machine
-  doorHandleState = DOOR_HANDLE_INIT;
-  // lastDoorHandleState = DOOR_HANDLE_INIT;
+
+  // Door Handle Controller object configuration
+  doorHandleController.setDependencies(&buttonDeploy, &buttonRetract, &buttonDoorHandleDeploy, &extcapaSensor, &inrcapaSensor, &ledCtrl, &actuator, &eLatchMotorDriver);
 
   // Serial.println(F("Setup Completed."));
   // Serial.println(F(""));
 }  // end setup
 
-void RefreshHandleState(void);
+// void RefreshHandleState(void);
 
 // === Main Loop ===
 void loop(void) {
@@ -276,10 +256,12 @@ void loop(void) {
   unsigned long t0 = micros();
   buttonDeploy.update();
   buttonRetract.update();
+  buttonDoorHandleDeploy.update();
+
   t_button = micros() - t0;
 
   t0 = micros();
-  updateeLatchSwitch();
+  doorHandleController.updateeLatchSwitch();
   t_latch = micros() - t0;
 
   t0 = micros();
@@ -297,7 +279,7 @@ void loop(void) {
   t_moc = micros() - t0;
 
   t0 = micros();
-  RefreshHandleState();
+  doorHandleController.refreshState();
   t_state = micros() - t0;
 
   t0 = micros();
@@ -310,250 +292,45 @@ void loop(void) {
 
   t0 = micros();
   ledCtrl.updateLedState();
+  if (doorHandleController.getswitchStatus())
+    ledLockStatus.ledOn();
+  else
+    ledLockStatus.ledOff();
+
+  ledLockStatus.updateLedState();
+
+  if (inrcapaSensor.getCurrentState())
+    ledCapaStatus.ledOn();
+  else
+    ledCapaStatus.ledOff();
+  ledCapaStatus.updateLedState();
   t_led = micros() - t0;
 
   t_end = micros();
 
 #if DEBUGGING_ENABLED
-  if ((t_end - t_start) > 500) {
-    Serial.print("Timing(us): ");
-    Serial.print("Buttons=");
-    Serial.print(t_button);
-    Serial.print(" | LatchSw=");
-    Serial.print(t_latch);
-    Serial.print(" | Capa=");
-    Serial.print(t_capa);
-    Serial.print(" | Potis=");
-    Serial.print(t_poti);
-    Serial.print(" | MOC=");
-    Serial.print(t_moc);
-    Serial.print(" | State=");
-    Serial.print(t_state);
-    Serial.print(" | Motor=");
-    Serial.print(t_motor);
-    Serial.print(" | Actuator=");
-    Serial.print(t_actuator);
-    Serial.print(" | LED=");
-    Serial.print(t_led);
-    Serial.print(" | Total=");
-    Serial.println(t_end - t_start);
-  }
+  // if ((t_end - t_start) > 500) {
+  Serial.print("Timing(us): ");
+  Serial.print("Buttons=");
+  Serial.print(t_button);
+  Serial.print(" | LatchSw=");
+  Serial.print(t_latch);
+  Serial.print(" | Capa=");
+  Serial.print(t_capa);
+  Serial.print(" | Potis=");
+  Serial.print(t_poti);
+  Serial.print(" | MOC=");
+  Serial.print(t_moc);
+  Serial.print(" | State=");
+  Serial.print(t_state);
+  Serial.print(" | Motor=");
+  Serial.print(t_motor);
+  Serial.print(" | Actuator=");
+  Serial.print(t_actuator);
+  Serial.print(" | LED=");
+  Serial.print(t_led);
+  Serial.print(" | Total=");
+  Serial.println(t_end - t_start);
+  // }
 #endif
 }  //end main loop
-
-void Check_Disable_Locking(void) {
-  // Handling the Proximity sensing logic to diable locking
-  if ((!Disable_Locking) && inrcapaSensor.getCurrentState()) {
-    extcapaSensor.enable(false);
-    Disable_Locking = true;
-
-  } else if (Disable_Locking && (!inrcapaSensor.getCurrentState())) {
-    extcapaSensor.enable(true);
-    Disable_Locking = false;
-  }
-  // Capa sensor update
-  inrcapaSensor.update();
-  extcapaSensor.update();
-}
-
-// Vaidation of DOOR Handle state transitions with previous state
-void setDoorHandleState(DoorHandleState state) {
-
-  if (state != doorHandleState) {
-    switch (state) {
-      case DOOR_HANDLE_INIT:
-        break;
-      case DOOR_HANDLE_CLOSED:
-        if (latchSwitchState && ((doorHandleState == DOOR_HANDLE_INIT) || (doorHandleState == DOOR_HANDLE_RETRACT))) {
-          doorHandleState = state;
-          ledCtrl.ledOn();
-          // Serial.println(F("Entering DOOR_HANDLE_CLOSED"));
-        } else {
-          // Serial.println(F("Please close the DOOR!!!"));
-          ledCtrl.ledOff();
-        }
-        break;
-      case DOOR_HANDLE_RETRACT:
-        if ((doorHandleState == DOOR_HANDLE_LATCHED) || (doorHandleState == DOOR_HANDLE_WAIT_OPEN)) {
-          doorHandleState = state;
-          // Serial.println(F("Entering DOOR_HANDLE_RETRACT"));
-        }
-        // else {
-        //   // Serial.println(F("Cannot Retract DOOR HANDLE!!!"));
-        // }
-        break;
-      case DOOR_HANDLE_DEPLOYED:
-        if (doorHandleState == DOOR_HANDLE_CLOSED) {
-          doorHandleState = state;
-          // Serial.println(F("Entering DOOR_HANDLE_DEPLOYED"));
-        }
-        // else {
-        //   // Serial.println("Cannot Deploy DOOR HANDLE!!! from " + String(doorHandleState));
-        // }
-        break;
-      case DOOR_HANDLE_WAIT_OPEN:
-        if (doorHandleState == DOOR_HANDLE_DEPLOYED) {
-          doorHandleState = state;
-          // Serial.println(F("Entering DOOR_HANDLE_WAIT_OPEN"));
-        }
-        // else {
-        //   // Serial.println(F("Deployment of DOOR HANDLE not correct!!!"));
-        // }
-        break;
-      case DOOR_HANDLE_OPEN:
-        if ((doorHandleState == DOOR_HANDLE_WAIT_OPEN) || (doorHandleState == DOOR_HANDLE_LATCHED)) {
-          doorHandleState = state;
-          Nb_Open_Attempt = 0;
-          // Serial.println(F("Entering DOOR_HANDLE_OPEN"));
-        }
-        // else {
-        //   // Serial.println(F("Opening of DOOR HANDLE is not correct at this moment!!!"));
-        // }
-        break;
-      case DOOR_HANDLE_WAIT_TO_LATCH:
-        if (doorHandleState == DOOR_HANDLE_OPEN) {
-          doorHandleState = state;
-          // Serial.println(F("Entering DOOR_HANDLE_WAIT_TO_LATCH"));
-        }
-        // else {
-        //   // Serial.println(F("Latching of DOOR HANDLE before Open is not correct!!!"));
-        // }
-        break;
-      case DOOR_HANDLE_LATCHED:
-        if (doorHandleState == DOOR_HANDLE_WAIT_TO_LATCH) {
-          doorHandleState = state;
-          // Serial.println(F("Entering DOOR_HANDLE_LATCHED"));
-        }
-        break;
-      default:
-        // Serial.println(F("Unknown state!!!"));
-        break;
-    }
-  }
-
-}  // setDoorHandleState
-
-void RefreshHandleState(void) {
-  // refresh the state machine
-  switch (doorHandleState) {
-    case DOOR_HANDLE_INIT:
-      if (latchSwitchState && actuator.setState(MOTOR_START_RETRACT) && eLatchMotorDriver.setState(RELAY_CCW))
-        setDoorHandleState(DOOR_HANDLE_CLOSED);
-      // else
-      // Serial.println(F("DOOR_HANDLE_INIT:: Waiting for DOOR close status"));
-      inrcapaSensor.enable(false);
-      inrcapaSensor.enable(true);
-      extcapaSensor.enable(false);
-      extcapaSensor.enable(true);
-      break;
-
-    case DOOR_HANDLE_CLOSED:
-      // Process Deploy switch event, check for MOTOR status then move to next state.
-      // if (buttonDeploy.isPressed() && (actuator.getState() == MOTOR_STOP)) {
-      if (buttonDeploy.getswitchStatus() && (actuator.getState() == MOTOR_STOP)) {
-        setDoorHandleState(DOOR_HANDLE_DEPLOYED);
-      }
-      // else {
-      //   // buttonDeploy.update();
-      //   // Serial.println("DOOR_HANDLE_CLOSED:: Waiting for Trigger :: " + String(buttonDeploy.getswitchStatus()) + " " + String(actuator.getState()));
-      // }
-      if (latchSwitchState)
-        ledCtrl.ledOn();
-      break;
-
-    case DOOR_HANDLE_RETRACT:
-
-      if (actuator.setState(MOTOR_START_RETRACT) && eLatchMotorDriver.setState(RELAY_CCW)) {
-        // Serial.println(F("DOOR_HANDLE_RETRACT:: CCW Triggered"));
-        inrcapaSensor.enable(false);
-        extcapaSensor.enable(false);
-        setDoorHandleState(DOOR_HANDLE_CLOSED);
-      }
-      // else {
-      //   // Serial.println(F("DOOR_HANDLE_RETRACT:: Waiting for Actuator & elatch status!!!"));
-      // }
-      break;
-
-    case DOOR_HANDLE_DEPLOYED:
-
-      // actuator.triggerAction(4000);
-      // go to next state only if the actuator and eLatch are deployed and ready
-      if (actuator.setState(MOTOR_START_DEPLOY) && eLatchMotorDriver.setState(RELAY_CW)) {
-        // Serial.println(F("DOOR_HANDLE_DEPLOYED:: CW Triggered"));
-        inrcapaSensor.enable(false);
-        inrcapaSensor.enable(true);
-        extcapaSensor.enable(false);
-        extcapaSensor.enable(true);
-        setDoorHandleState(DOOR_HANDLE_WAIT_OPEN);
-      } else {
-        Check_Disable_Locking();
-        // Serial.println(F("DOOR_HANDLE_DEPLOYED:: Waiting for Actuator & elatch status!!!"));
-      }
-      break;
-
-    case DOOR_HANDLE_WAIT_OPEN:
-      Check_Disable_Locking();
-
-      // Incase of Retract switch pressed or external lock capa sensor pressed, retract the handle
-      if (latchSwitchState && (buttonRetract.getswitchStatus() || extcapaSensor.getCurrentState())) {
-        setDoorHandleState(DOOR_HANDLE_RETRACT);
-      } else {  // just fade in and fade out LED
-        if (ledCtrl.getState() == LED_ON)
-          ledCtrl.fadeLedIn(LED_FADE_IN_TIME_MS);
-        else if (ledCtrl.getState() == LED_OFF)
-          ledCtrl.fadeLedOut(LED_FADE_OUT_TIME_MS);
-      }
-      break;
-
-    case DOOR_HANDLE_OPEN:
-      if (latchSwitchState) {
-        if (Nb_Open_Attempt <= NB_OPEN_RETRY_COUNT) {
-          if ((eLatchMotorDriver.getState() == RELAY_STOP) && eLatchMotorDriver.setState(RELAY_CW)) {
-            if (ledCtrl.getState() == LED_OFF)
-              ledCtrl.ledOn();
-            ++Nb_Open_Attempt;
-            // Serial.println(F("DOOR_HANDLE_OPEN:: Waiting for eLatch to open!!!"));
-          }
-        }
-      } else if ((eLatchMotorDriver.getRecentRun() == RELAY_CW) && (eLatchMotorDriver.getState() == RELAY_STOP)) {
-        if (ledCtrl.getState() == LED_ON)
-          ledCtrl.ledOff();
-        Check_Disable_Locking();
-        setDoorHandleState(DOOR_HANDLE_WAIT_TO_LATCH);
-        // Serial.println(F("DOOR_HANDLE_OPEN:: Waiting for DOOR latched!!!"));
-      }
-      break;
-    case DOOR_HANDLE_WAIT_TO_LATCH:
-      inrcapaSensor.enable(false);
-      extcapaSensor.enable(false);
-
-      if (latchSwitchState) {
-        if (ledCtrl.getState() == LED_OFF)
-          ledCtrl.ledOn();
-        setDoorHandleState(DOOR_HANDLE_LATCHED);
-      } else {
-        if (ledCtrl.getState() == LED_ON)
-          ledCtrl.ledOff();
-      }
-      break;
-    case DOOR_HANDLE_LATCHED:
-      inrcapaSensor.enable(true);
-      extcapaSensor.enable(true);
-      Check_Disable_Locking();
-
-      // Incase of Retract switch pressed or external lock capa sensor pressed, retract the handle
-      if (latchSwitchState && (buttonRetract.getswitchStatus() || (extcapaSensor.getCurrentState() && (!inrcapaSensor.getCurrentState())))) {
-        setDoorHandleState(DOOR_HANDLE_RETRACT);
-      } else {  // just fade in and fade out LED
-        if (ledCtrl.getState() == LED_ON)
-          ledCtrl.fadeLedIn(LED_FADE_IN_TIME_MS);
-        else if (ledCtrl.getState() == LED_OFF)
-          ledCtrl.fadeLedOut(LED_FADE_OUT_TIME_MS);
-      }
-      break;
-
-    default:
-      // Serial.println(F("Main state machine error"));
-      break;
-  }
-}  // RefreshHandleState

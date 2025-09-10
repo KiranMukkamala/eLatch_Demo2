@@ -1,9 +1,6 @@
 #include "WString.h"
 #include "RelayController.h"
 
-/*==== Class Initialization ===*/
-RelayController eLatchMotorDriver;
-
 void RelayController::begin(uint8_t r, uint8_t l) {
   rpwmPin = r;
   lpwmPin = l;

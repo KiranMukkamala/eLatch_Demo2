@@ -2,9 +2,6 @@
 #include "CapaTouchSensor.h"
 
 
-MotorController actuator;
-
-
 void MotorController::begin(uint8_t en, uint8_t r, uint8_t l,
                             uint16_t deployPwm_, uint16_t retractPwm_,
                             unsigned long deployDur, unsigned long retractDur) {

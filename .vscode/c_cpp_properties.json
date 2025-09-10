@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "Arduino",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/**",
+                "C:/Users/kiran.mukkamala/AppData/Local/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino",
+                "C:/Users/kiran.mukkamala/AppData/Local/Arduino15/packages/arduino/hardware/avr/1.8.6/variants/micro" // Change "micro" to your board variant if needed
+            ],
+            "defines": [
+                "ARDUINO=10805",
+                "ARDUINO_AVR_MICRO"
+            ],
+            "compilerPath": "C:/Users/kiran.mukkamala/AppData/Local/Arduino15/packages/arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7/bin/avr-gcc.exe"
+
+        }
+    ],
+    "version": 4
+}

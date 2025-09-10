@@ -30,7 +30,7 @@ void MOCReader::update() {
 }
 
 void MOCReader::readMOCPacket() {
-  const int MAX_BYTES_PER_CALL = 8; // Lower for better responsiveness
+  const int MAX_BYTES_PER_CALL = 1; // Lower for better responsiveness
   int bytesProcessed = 0;
   while (Serial1.available() && bytesProcessed < MAX_BYTES_PER_CALL) {
     int8_t c = Serial1.read();

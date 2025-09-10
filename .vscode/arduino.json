@@ -1,0 +1,6 @@
+{
+    "board": "arduino:avr:micro",
+    "sketch": "eLatch_Demo2.ino",
+    "configuration": "cpu=atmega328",
+    "prebuild": "IF \"%VSCA_BUILD_MODE%\"==\"Verifying\" (echo VSCA_BUILD_MODE=%VSCA_BUILD_MODE% && echo VSCA_BOARD=%VSCA_BOARD%)"
+}
