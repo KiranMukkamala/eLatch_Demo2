@@ -3,25 +3,25 @@
 
 // MCU PIN Usage/ Layout
 
-#define EXT_CAPA_PWR_PIN 11  // OUT: External CAPA Sensor enable
-#define EXT_CAPA_SEN_PIN 5   // IN: External CAPA Sensor read
+#define EXT_CAPA_PWR_PIN 2  // OUT: External CAPA Sensor enable
+#define EXT_CAPA_SEN_PIN 3   // IN: External CAPA Sensor read
 
 #define MOTOR_ENABLE_PIN 8  // OUT: Actuator enable
 #define MOTOR_RPWM_PIN 9    // OUT: Actuator CW
 #define MOTOR_LPWM_PIN 10   // OUT: Actuator CCW
 #define E_LATCH_SW_PIN 12   // IN: eLatch Switch read
 
-#define INR_CAPA_PWR_PIN 2  // OUT: Inner CAPA Sensor enable
-#define INR_CAPA_SEN_PIN 3  // IN: Inner CAPA Sensor read
+#define INR_CAPA_PWR_PIN 11  // OUT: Inner CAPA Sensor enable
+#define INR_CAPA_SEN_PIN 5  // IN: Inner CAPA Sensor read
 
 #define DEPLOY_SW_PIN 6   //IN: Deploy Switch read
 #define RETRACT_SW_PIN 7  //IN: Retract Switch read
 
-#define LED_PWM_PIN A0          // OUT LED indications
+#define LED_PWM_PIN 13          // OUT LED indications
 #define LED_LOCK_STATUS_PIN A3  // OUT LED indications for Lock status
 #define LED_CAPA_STATUS_PIN A4  // OUT LED indications for Capa status
 
-#define DEPLOY_HANDLE_SW_PIN 17  //IN: Deploy Switch(teramount) read
+#define DEPLOY_HANDLE_SW_PIN A0  //IN: Deploy Switch(teramount) read
 
 #define RELAY_SW_CW_PIN 4    // CW
 #define RELAY_SW_CCW_PIN A5  // CCW
@@ -62,7 +62,7 @@
 #define SAMPLE_COUNT 1
 
 #define MOC_UNLOCK_THRESHOLD_MIN 300
-#define MOC_UNLOCK_THRESHOLD_MAX 1800
+#define MOC_UNLOCK_THRESHOLD_MAX 2100
 #define MOC_OPEN_THRESHOLD_MIN 2101
 #define MOC_OPEN_THRESHOLD_MAX 5000
 
@@ -82,8 +82,8 @@
 #define LED_FADE_IN_TIME_MS 1500
 #define LED_FADE_OUT_TIME_MS 600
 
-#define RETRACT_TIME_MS 800
-#define RETRACT_PWM 700
+#define RETRACT_TIME_MS 900
+#define RETRACT_PWM 900
 
 #define DEPLOY_TIME_MS 800
 #define DEPLOY_PWM 700
