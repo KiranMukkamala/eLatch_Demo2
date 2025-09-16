@@ -92,7 +92,7 @@
 #include "RelayController.h"
 #include "DoorHandleController.h"
 
-#define DEBUGGING_ENABLED true
+#define DEBUGGING_ENABLED false
 #define SERIAL_DEBUG_SPEED 19200
 
 /*====  Main Door Handle Controller object ====*/
@@ -153,23 +153,27 @@ void onMOCPull(const MOCSignalData& data) {
 
   // Serial Port Plotter v1.3.0 - Data Output
   // Door Lock Status
-  // Serial.print("DOOR_LOCK_STATUS:");
-  // Serial.print(latchSwitchState ? data.unlockThreshold + 300 : data.unlockThreshold - 100);
+  Serial.print("DOOR_LOCK_STATUS:");
+  Serial.print(doorHandleController.getswitchStatus() ? data.unlockThreshold + 500 : data.unlockThreshold + 450);
 
-  // // External Capacitive Sensor Status
-  // Serial.print("\tEXT_CAPA_STATUS:");
-  // Serial.print(extcapaSensor.getCurrentState() ? data.unlockThreshold + 200 : data.unlockThreshold - 200);
+  // External Capacitive Sensor Status
+  Serial.print("\tEXT_CAPA_STATUS:");
+  Serial.print(extcapaSensor.getCurrentState() ? data.unlockThreshold + 350 : data.unlockThreshold + 300);
 
-  // // Internal Capacitive Sensor Status
-  // Serial.print("\tINN_CAPA_STATUS:");
-  // Serial.print(inrcapaSensor.getCurrentState() ? data.unlockThreshold + 100 : data.unlockThreshold - 300);
+  // Internal Capacitive Sensor Status
+  Serial.print("\tINN_CAPA_STATUS:");
+  Serial.print(inrcapaSensor.getCurrentState() ? data.unlockThreshold + 200 : data.unlockThreshold + 100);
 
-  // // Threshold and Pressure Data
-  // Serial.print("\tMOC_THRESHOLD:");
-  // Serial.print(data.unlockThreshold);
+  // Deploy Switch Status
+  Serial.print("\tDEPLOY_STATUS:");
+  Serial.print(buttonDoorHandleDeploy.getswitchStatus() ? data.unlockThreshold + 600 : data.unlockThreshold + 550);
 
-  // Serial.print("\tMOC_PRESSURE:");
-  // Serial.println(abs(data.diff));
+  // Threshold and Pressure Data
+  Serial.print("\tMOC_THRESHOLD:");
+  Serial.print(data.unlockThreshold);
+
+  Serial.print("\tMOC_PRESSURE:");
+  Serial.println(abs(data.diff));
 }
 
 // === Setup ===
@@ -293,9 +297,9 @@ void loop(void) {
   t0 = micros();
   ledCtrl.updateLedState();
   if (doorHandleController.getswitchStatus())
-    ledLockStatus.ledOn();
-  else
     ledLockStatus.ledOff();
+  else
+    ledLockStatus.ledOn();
 
   ledLockStatus.updateLedState();
 
@@ -310,26 +314,26 @@ void loop(void) {
 
 #if DEBUGGING_ENABLED
   // if ((t_end - t_start) > 500) {
-  Serial.print("Timing(us): ");
-  Serial.print("Buttons=");
+  // Serial.print("Timing(us): ");
+  Serial.print("Buttons:");
   Serial.print(t_button);
-  Serial.print(" | LatchSw=");
+  Serial.print("\t LatchSw:");
   Serial.print(t_latch);
-  Serial.print(" | Capa=");
+  Serial.print("\t Capa:");
   Serial.print(t_capa);
-  Serial.print(" | Potis=");
+  Serial.print("\t Potis:");
   Serial.print(t_poti);
-  Serial.print(" | MOC=");
+  Serial.print("\t MOC:");
   Serial.print(t_moc);
-  Serial.print(" | State=");
+  Serial.print("\t HandleState:");
   Serial.print(t_state);
-  Serial.print(" | Motor=");
+  Serial.print("\t Motor:");
   Serial.print(t_motor);
-  Serial.print(" | Actuator=");
+  Serial.print("\t Actuator:");
   Serial.print(t_actuator);
-  Serial.print(" | LED=");
+  Serial.print("\t LED:");
   Serial.print(t_led);
-  Serial.print(" | Total=");
+  Serial.print("\t Total:");
   Serial.println(t_end - t_start);
   // }
 #endif
