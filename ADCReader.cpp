@@ -2,7 +2,6 @@
 //#include "DebugLogger.h"
 
 /*==== Class Initialization ===*/
-ADCReader userPotiRetract;
 ADCReader userPotiDeploy;
 
 
@@ -24,15 +23,21 @@ void ADCReader::begin(uint8_t pin, uint8_t numSamples, float refVoltage) {
 
 void ADCReader::update() {
   int raw = analogRead(_pin);
+  const int threshold = 2;
   _lastRaw = raw;
 
   _sampleSum += raw;
   _sampleIndex++;
 
   if (_sampleIndex >= _numSamples) {
-    _lastAverage = (uint32_t)_sampleSum / _numSamples;
-    _lastVoltage = (_lastAverage / 1023.0) * _refVoltage;
-
+    uint32_t newAverage = _sampleSum / _numSamples;
+    if (abs((int)newAverage - (int)_lastAverage) > threshold) {
+      _lastAverage = newAverage;
+      _lastVoltage = (_lastAverage / 1023.0) * _refVoltage;
+      _newAverageAvailable = true;
+    } else {
+      _newAverageAvailable = false;
+    }
     _sampleSum = 0;
     _sampleIndex = 0;
   }
@@ -53,4 +58,12 @@ uint32_t ADCReader::getVoltage() const {
 uint32_t ADCReader::getScaled(float inMin, float inMax, float outMin, float outMax) const {
   uint32_t clamped = constrain(_lastAverage, inMin, inMax);
   return map(clamped, inMin, inMax, outMin, outMax);
+}
+
+bool ADCReader::hasNewAverage() const {
+  return _newAverageAvailable;
+}
+
+void ADCReader::setNewAverage(bool treated){
+  _newAverageAvailable = treated;
 }

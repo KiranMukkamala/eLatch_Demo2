@@ -160,7 +160,7 @@ void DoorHandleController::refreshState() {
       // go to next state only if the actuator and eLatch are deployed and ready
       if (actuator->setState(MOTOR_START_DEPLOY) && eLatchMotorDriver->setState(RELAY_CW)) {
         // Serial.println(F("DOOR_HANDLE_DEPLOYED:: CW Triggered"));
-        delay(200);
+        delay(300);
         inrcapaSensor->enable(false);
         inrcapaSensor->enable(true);
         extcapaSensor->enable(false);

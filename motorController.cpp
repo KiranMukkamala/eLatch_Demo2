@@ -1,5 +1,4 @@
 #include "MotorController.h"
-#include "CapaTouchSensor.h"
 
 
 void MotorController::begin(uint8_t en, uint8_t r, uint8_t l,

@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 // #include "global.h"
-#include "constants.h"
+// #include "constants.h"
 
 
 
@@ -19,6 +19,8 @@ public:
   uint32_t getAverage() const;
   uint32_t getVoltage() const;
   uint32_t getScaled(float inMin, float inMax, float outMin, float outMax) const;
+  bool hasNewAverage() const;
+  void setNewAverage(bool treated);
 
 private:
   uint8_t _pin = A0;
@@ -31,10 +33,9 @@ private:
 
   uint8_t _sampleIndex = 0;
   long _sampleSum = 0;
+  bool _newAverageAvailable = false;
 };
 
-
-extern ADCReader userPotiRetract;
 extern ADCReader userPotiDeploy;
 
 #endif  // ADC_READER_H
