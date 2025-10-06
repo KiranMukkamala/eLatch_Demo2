@@ -34,12 +34,12 @@
  *                 +-------------------------+
  *                     Arduino Micro Board     
  *                 +-------------------------+                         
- *                     [TX1] ------> Not Used      
- *                     [RX1] <------ MOC TX       
+ *                     [TX1] ------> IDNEO BOARD     
+ *                     [RX1] <------ IDNEO BOARD      
  *                     [D0]     x                        
  *                     [D1]     x                      
- *                     [D2] ------> EXT CAPA Sensor PWR VDD                 
- *                     [D3] <------ EXT CAPA Sensor OUT                            
+ *                     [D2]     x             
+ *                     [D3]     x                       
  *                     [D4] ------> ELatch Relay       
  *                     [D5]     x
  *                     [D6]     x                            
@@ -102,79 +102,24 @@ MotorController actuator;
 /*==== Object for elatch motor driver ===*/
 RelayController eLatchMotorDriver;
 
-//=== Deploy and Retract Switch Objects ===
+/*=== Deploy and Retract Switch Objects ===*/
 Debounce buttonDeploy(DEPLOY_SW_PIN, LOW);
 Debounce buttonRetract(RETRACT_SW_PIN, LOW);
 
 Debounce buttonDoorHandleDeploy(DEPLOY_HANDLE_SW_PIN, LOW);
 
-//CAPA Sensor objects
-// CapaTouchSensor extcapaSensor;
-// CapaTouchSensor inrcapaSensor;
-
-//LED control object
+// LED control objects
 LEDControl ledCtrl;
 LEDControl ledLockStatus;
 LEDControl ledCapaStatus;
 
-// void onMOCPull(const MOCSignalData& data) {
+// Field count for frames (keep small if possible)
+constexpr uint8_t FIELD_COUNT = 12;
 
-//   static bool triggerActive = false;
-//   bool monotonicOpen = ((data.mid <= data.oldest) && (data.newest <= data.mid));
-//   //static bool unlockTriggerActive = false;
+// MOC values Array
+uint16_t values[FIELD_COUNT];
 
-//   // Serial.println(String(F("data.diff: ")) + String(abs(data.diff)));
-//   // Serial.println(String(F("unlockThreshold: ")) + String(data.unlockThreshold));
-//   // Serial.println(String(F("openThreshold: ")) + String(data.openThreshold));
-
-
-//   //detect user action like pulling
-//   if (!triggerActive && abs(data.diff) >= data.unlockThreshold) {
-
-//     if (monotonicOpen) {
-//       // Serial.println(String(F("data.diff: ")) + String(abs(data.diff)));
-//       // Serial.println(String(F("unlockThreshold: ")) + String(data.unlockThreshold));
-//       // Serial.println(String(F("openThreshold: ")) + String(data.openThreshold));
-//       // Serial.println(F("MOC -> eLatch Open"));
-//       // elatch.open();  //user had pulled the lever with intention to open
-//       doorHandleController.setState(DOOR_HANDLE_OPEN);
-//       triggerActive = true;
-//     }
-//   } else
-//     // resting position of door handle
-//     if (triggerActive && (abs(data.diff) < data.unlockThreshold)) {
-//       // Reset when returning to rest state
-//       // Serial.println(F("MOC -> released"));
-//       triggerActive = false;
-//       // elatch.lock();  //come back to lock state
-//     }
-
-//   // Serial Port Plotter v1.3.0 - Data Output
-//   // Door Lock Status
-//   Serial.print("DOOR_LOCK_STATUS:");
-//   Serial.print(doorHandleController.getswitchStatus() ? data.unlockThreshold + 500 : data.unlockThreshold + 450);
-
-//   // External Capacitive Sensor Status
-//   Serial.print("\tEXT_CAPA_STATUS:");
-//   Serial.print(extcapaSensor.getCurrentState() ? data.unlockThreshold + 350 : data.unlockThreshold + 300);
-
-//   // Internal Capacitive Sensor Status
-//   Serial.print("\tINN_CAPA_STATUS:");
-//   Serial.print(inrcapaSensor.getCurrentState() ? data.unlockThreshold + 200 : data.unlockThreshold + 100);
-
-//   // Deploy Switch Status
-//   Serial.print("\tDEPLOY_STATUS:");
-//   Serial.print(buttonDoorHandleDeploy.getswitchStatus() ? data.unlockThreshold + 600 : data.unlockThreshold + 550);
-
-//   // Threshold and Pressure Data
-//   Serial.print("\tMOC_THRESHOLD:");
-//   Serial.print(data.unlockThreshold);
-
-//   Serial.print("\tMOC_PRESSURE:");
-//   Serial.println(abs(data.diff));
-// }
-
-
+// UART frame
 constexpr uint8_t maxFrameLength = 80;
 char rawFrame[maxFrameLength];
 
@@ -241,13 +186,10 @@ void serial1_rx_hook(uint8_t c, unsigned long t) {
   }
 }
 
-// Field count for frames (keep small if possible)
-constexpr uint8_t FIELD_COUNT = 12;
-
 // Fast parser: parse integers from a frame like "$111 222 333;"
 // $ => START FRAME
-// AAAA BBBBB CCCCC DDDDD => CAP01 DATA
-// EEEE FFFFF GGGGG HHHHH => CAO02 DATA
+// AAAA BBBBB CCCCC DDDDD => CAP01 DATA(Inner CAPA)
+// EEEE FFFFF GGGGG HHHHH => CAO02 DATA(External CAPA)
 // IIII JJJJJ KKKKK LLLLL => MOC DATA
 // ; => END FRAME
 // Returns true if exactly FIELD_COUNT integers parsed and stores them into outValues.
@@ -424,11 +366,6 @@ static void handle_usb_command(char* line) {
 }
 
 // ------------------ Incoming Serial1 command handling ------------------
-// Stored values for targets (default per examples)
-static uint32_t stored_CAP01 = 123;
-static uint32_t stored_CAP02 = 1234;
-static uint32_t stored_MOC01 = 12345;
-
 // type: 0=INFO, 1=RT, 2=WT
 static tx_entry_t tx_queue[8];
 static uint8_t tx_q_head = 0;
@@ -505,11 +442,11 @@ static void parse_response_line(char* line) {
   if (!hasPending) return;
   // consume pending and map to stored variables if target matches
   dequeue_tx(&pending);
-  if (pending.type == 1 || pending.type == 2) {
-    if (strcmp(pending.target, "CAP01") == 0) stored_CAP01 = (uint32_t)v;
-    else if (strcmp(pending.target, "CAP02") == 0) stored_CAP02 = (uint32_t)v;
-    else if (strcmp(pending.target, "MOC01") == 0) stored_MOC01 = (uint32_t)v;
-  }
+  // if (pending.type == 1 || pending.type == 2) {
+  //   if (strcmp(pending.target, "CAP01") == 0) stored_CAP01 = (uint32_t)v;
+  //   else if (strcmp(pending.target, "CAP02") == 0) stored_CAP02 = (uint32_t)v;
+  //   else if (strcmp(pending.target, "MOC01") == 0) stored_MOC01 = (uint32_t)v;
+  // }
 }
 
 // Try to read a newline-terminated line from the ring buffer when no framed frame is waiting.
@@ -591,11 +528,6 @@ void setup() {
 
   // MOC deploy / retract user threshold settings
   userPotiDeploy.begin(ADC_USER_DEPLOY_PIN, NUM_SAMPLES, ADC_REF_VOLTAGE);
-  userPotiRetract.begin(ADC_USER_RETRACT_PIN, NUM_SAMPLES, ADC_REF_VOLTAGE);
-
-  // //moc sensor
-  // mocReader.begin();
-  // mocReader.setChangeCallback(onMOCPull);
 
   //door handle actuator
   actuator.begin(MOTOR_ENABLE_PIN, MOTOR_RPWM_PIN, MOTOR_LPWM_PIN,
@@ -613,18 +545,13 @@ void setup() {
   pinMode(RETRACT_SW_PIN, INPUT_PULLUP);
   pinMode(DEPLOY_HANDLE_SW_PIN, INPUT_PULLUP);
 
-  // //capa sensor
-  // extcapaSensor.begin(EXT_CAPA_PWR_PIN, EXT_CAPA_SEN_PIN);
-  // inrcapaSensor.begin(INR_CAPA_PWR_PIN, INR_CAPA_SEN_PIN);
-
   //led door handle
   ledCtrl.begin(LED_PWM_PIN, LED_MAX_BRIGHTNESS);
   ledLockStatus.begin(LED_LOCK_STATUS_PIN, LED_MAX_BRIGHTNESS);
   ledCapaStatus.begin(LED_CAPA_STATUS_PIN, LED_MAX_BRIGHTNESS);
 
-
   // Door Handle Controller object configuration
-  doorHandleController.setDependencies(&buttonDeploy, &buttonRetract, &buttonDoorHandleDeploy, &extcapaSensor, &inrcapaSensor, &ledCtrl, &actuator, &eLatchMotorDriver);
+  doorHandleController.setDependencies(&buttonDeploy, &buttonRetract, &buttonDoorHandleDeploy, &(values[0]), &(values[4]), &ledCtrl, &actuator, &eLatchMotorDriver);
 
   // Serial.println(F("Setup Completed."));
   // Serial.println(F(""));
@@ -635,7 +562,7 @@ void setup() {
 // === Main Loop ===
 void loop(void) {
   unsigned long t_start = micros();
-  unsigned long t_button = 0, t_latch = 0, t_capa = 0, t_poti = 0, t_moc = 0;
+  unsigned long t_button = 0, t_latch = 0, t_poti = 0, t_moc = 0;
   unsigned long t_state = 0, t_motor = 0, t_actuator = 0, t_led = 0;
   unsigned long t_end = 0;
 
@@ -650,18 +577,12 @@ void loop(void) {
   doorHandleController.updateeLatchSwitch();
   t_latch = micros() - t0;
 
-  // t0 = micros();
-  // inrcapaSensor.update();
-  // extcapaSensor.update();
-  // t_capa = micros() - t0;
-
   t0 = micros();
   userPotiDeploy.update();
-  // userPotiRetract.update();
   t_poti = micros() - t0;
 
   t0 = micros();
-  mocReader.update();
+  moc_reading();
   t_moc = micros() - t0;
 
   t0 = micros();
@@ -685,12 +606,12 @@ void loop(void) {
 
   ledLockStatus.updateLedState();
 
-  // if (inrcapaSensor.getCurrentState())
-  //   ledCapaStatus.ledOn();
-  // else
-  //   ledCapaStatus.ledOff();
-  // ledCapaStatus.updateLedState();
-  // t_led = micros() - t0;
+  if (values[0])
+    ledCapaStatus.ledOn();
+  else
+    ledCapaStatus.ledOff();
+  ledCapaStatus.updateLedState();
+  t_led = micros() - t0;
 
   t_end = micros();
 
@@ -701,8 +622,6 @@ void loop(void) {
   Serial.print(t_button);
   Serial.print("\t LatchSw:");
   Serial.print(t_latch);
-  // Serial.print("\t Capa:");
-  // Serial.print(t_capa);
   Serial.print("\t Potis:");
   Serial.print(t_poti);
   Serial.print("\t MOC:");
@@ -721,3 +640,129 @@ void loop(void) {
 #endif
 
 }  //end main loop
+
+
+
+void moc_reading() {
+  // Read USB-Serial input (non-blocking) and handle commands
+  static char lineBuf[64];
+  static uint8_t linePos = 0;
+  while (Serial.available() > 0) {
+    int c = Serial.read();
+    if (c <= 0) break;
+    if (c == '\r') continue;
+    if (c == '\n') {
+      lineBuf[linePos] = '\0';
+      if (linePos > 0) {
+        handle_usb_command(lineBuf);
+      }
+      linePos = 0;
+    } else {
+      if (linePos < (sizeof(lineBuf) - 1)) {
+        lineBuf[linePos++] = (char)c;
+      }
+    }
+  }
+
+  // If ISR-hooked frame is available, copy it out of the ring and process
+  // First, try to read a raw line from the UART ring (responses coming in on Serial1)
+  char uartLine[80];
+  if (try_read_line_from_ring(uartLine, sizeof(uartLine))) {
+    // parse response line and associate with pending TX entries
+    parse_response_line(uartLine);
+  }
+
+  if (hook_has_frame) {
+    noInterrupts();
+    uint16_t start = hook_frame_start_pos;
+    uint16_t end = hook_frame_end_pos;
+    // compute length (inclusive), handling wrap
+    uint32_t len32;
+    if (end >= start) {
+      len32 = (uint32_t)(end - start) + 1;
+    } else {
+      len32 = (uint32_t)(RING_SIZE - start) + (uint32_t)(end) + 1;
+    }
+    if (len32 >= (uint32_t)maxFrameLength) len32 = maxFrameLength - 1;
+    uint16_t len = (uint16_t)len32;
+
+    // copy out of ring with wrap handling
+    for (uint16_t i = 0; i < len; ++i) {
+      uint16_t idx = start + i;
+      if (idx >= RING_SIZE) idx -= RING_SIZE;
+      rawFrame[i] = (char)ring_buf[idx];
+    }
+    rawFrame[len] = '\0';
+
+    // advance tail past the consumed frame (end + 1) mod RING_SIZE
+    uint16_t newTail = end + 1;
+    if (newTail >= RING_SIZE) newTail = 0;
+    ring_tail = newTail;
+
+    // copy timestamps and clear flag
+    frameStartMicros = hook_frame_start;
+    frameEndMicros = hook_frame_end;
+    hook_has_frame = 0;
+    interrupts();
+
+    bool ok = parse_values_fast((const char*)rawFrame, values, FIELD_COUNT);
+
+    // minimal printing to avoid blocking; verbosePrint prints full frame and fields
+    if (verbosePrint) {
+      Serial.print(F("[RawFrame ISR] "));
+      Serial.print(rawFrame);
+    }
+
+    if (frameTimingEnabled) {
+      // unsigned long duration = frameEndMicros - frameStartMicros;
+      // unsigned long inter = (lastFrameEndMicros == 0) ? 0 : (frameStartMicros - lastFrameEndMicros);
+      unsigned long procLatency = micros() - frameEndMicros;  // time from hook frame end to now
+      Serial.print(F("INN_CAPA:"));
+      Serial.print(values[0]);
+      Serial.print(F("\tEXT_CAPA:"));
+      Serial.print(values[4]);
+      Serial.print(F("\tMOC:"));
+      Serial.print(values[9]);
+      // Serial.print(F("\tDURATION:")); Serial.print(duration);
+      // Serial.print(F("\tINTERVAL:")); Serial.print(inter);
+      Serial.print(F("\tPROCESSTIME:"));
+      Serial.println(procLatency);
+    }
+
+    if (verbosePrint) {
+      if (ok) {
+        for (int i = 0; i < FIELD_COUNT; ++i) {
+          Serial.print(F("F"));
+          Serial.print(i + 1);
+          Serial.print(F(":"));
+          Serial.print(values[i]);
+          if (i + 1 < FIELD_COUNT) Serial.print(F(" "));
+        }
+        Serial.println();
+      } else {
+        Serial.println(F("Parsed: invalid format"));
+      }
+    }
+    lastFrameEndMicros = frameEndMicros;
+  }
+
+  userPotiDeploy.update();
+
+
+  if (userPotiDeploy.hasNewAverage()) {
+    uint32_t potValue = userPotiDeploy.getAverage();  // Avoid division by zero or out-of-range
+    uint32_t scvalue = userPotiDeploy.getScaled(0, 1023, 10, 65535);
+    // Send the value over serial
+    // Serial.println(scaledValue);  // Or Serial.write() if sending binary
+
+    Serial.print(F("POTI_VALUE:"));
+    Serial.print(potValue);
+
+    Serial.print(F("\tSCALED_VALUE:"));
+    Serial.println(scvalue);
+    static char wtbuf[64];
+    sprintf(wtbuf, "TOUCH+WT+MOC01+%lu", scvalue);
+    handle_usb_command(wtbuf);
+    userPotiDeploy.setNewAverage(false);
+  }
+}

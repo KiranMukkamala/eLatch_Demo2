@@ -8,7 +8,7 @@ DoorHandleController::DoorHandleController()
     Disable_Locking(false), Nb_Open_Attempt(0) {}
 
 void DoorHandleController::setDependencies(Debounce* deployBtn, Debounce* retractBtn, Debounce* deployHandleBtn,
-                                           CapaTouchSensor* extCapa, CapaTouchSensor* inrCapa,
+                                           uint16_t* extCapa, uint16_t* inrCapa,
                                            LEDControl* ledCtrl,
                                            MotorController* actuator,
                                            RelayController* eLatchMotorDriver) {
@@ -101,16 +101,16 @@ void DoorHandleController::setState(DoorHandleState state) {
 }
 
 void DoorHandleController::Check_Disable_Locking() {
-  if ((!Disable_Locking) && inrcapaSensor && inrcapaSensor->getCurrentState()) {
-    if (extcapaSensor) extcapaSensor->enable(false);
+  if ((!Disable_Locking) && inrcapaSensor && *inrcapaSensor) {
+    // if (extcapaSensor) extcapaSensor->enable(false);
     Disable_Locking = true;
-  } else if (Disable_Locking && inrcapaSensor && (!inrcapaSensor->getCurrentState())) {
-    if (extcapaSensor) extcapaSensor->enable(true);
+  } else if (Disable_Locking && inrcapaSensor && (!(*inrcapaSensor))) {
+    // if (extcapaSensor) extcapaSensor->enable(true);
     Disable_Locking = false;
   }
   // Capa sensor update
-  if (inrcapaSensor) inrcapaSensor->update();
-  if (extcapaSensor) extcapaSensor->update();
+  // if (inrcapaSensor) inrcapaSensor->update();
+  // if (extcapaSensor) extcapaSensor->update();
 }
 
 void DoorHandleController::refreshState() {
@@ -121,10 +121,10 @@ void DoorHandleController::refreshState() {
         setState(DOOR_HANDLE_CLOSED);
       // else
       // Serial.println(F("DOOR_HANDLE_INIT:: Waiting for DOOR close status"));
-      inrcapaSensor->enable(false);
-      inrcapaSensor->enable(true);
-      extcapaSensor->enable(false);
-      extcapaSensor->enable(true);
+      // inrcapaSensor->enable(false);
+      // inrcapaSensor->enable(true);
+      // extcapaSensor->enable(false);
+      // extcapaSensor->enable(true);
       break;
 
     case DOOR_HANDLE_CLOSED:
@@ -145,8 +145,8 @@ void DoorHandleController::refreshState() {
 
       if (actuator->setState(MOTOR_START_RETRACT) && eLatchMotorDriver->setState(RELAY_CCW)) {
         // Serial.println(F("DOOR_HANDLE_RETRACT:: CCW Triggered"));
-        inrcapaSensor->enable(false);
-        extcapaSensor->enable(false);
+        // inrcapaSensor->enable(false);
+        // extcapaSensor->enable(false);
         setState(DOOR_HANDLE_CLOSED);
       }
       // else {
@@ -161,10 +161,10 @@ void DoorHandleController::refreshState() {
       if (actuator->setState(MOTOR_START_DEPLOY) && eLatchMotorDriver->setState(RELAY_CW)) {
         // Serial.println(F("DOOR_HANDLE_DEPLOYED:: CW Triggered"));
         delay(300);
-        inrcapaSensor->enable(false);
-        inrcapaSensor->enable(true);
-        extcapaSensor->enable(false);
-        extcapaSensor->enable(true);
+        // inrcapaSensor->enable(false);
+        // inrcapaSensor->enable(true);
+        // extcapaSensor->enable(false);
+        // extcapaSensor->enable(true);
         setState(DOOR_HANDLE_WAIT_OPEN);
       } else {
         Check_Disable_Locking();
@@ -176,7 +176,7 @@ void DoorHandleController::refreshState() {
       this->Check_Disable_Locking();
 
       // Incase of Retract switch pressed or external lock capa sensor pressed, retract the handle
-      if (latchSwitchState && (buttonRetract->getswitchStatus() || extcapaSensor->getCurrentState())) {
+      if (latchSwitchState && (buttonRetract->getswitchStatus() || ((!Disable_Locking) && *extcapaSensor))) {
         setState(DOOR_HANDLE_RETRACT);
       } else {  // just fade in and fade out LED
         if (ledCtrl->getState() == LED_ON)
@@ -205,8 +205,8 @@ void DoorHandleController::refreshState() {
       }
       break;
     case DOOR_HANDLE_WAIT_TO_LATCH:
-      inrcapaSensor->enable(false);
-      extcapaSensor->enable(false);
+      // inrcapaSensor->enable(false);
+      // extcapaSensor->enable(false);
 
       if (latchSwitchState) {
         if (ledCtrl->getState() == LED_OFF)
@@ -218,12 +218,12 @@ void DoorHandleController::refreshState() {
       }
       break;
     case DOOR_HANDLE_LATCHED:
-      inrcapaSensor->enable(true);
-      extcapaSensor->enable(true);
+      // inrcapaSensor->enable(true);
+      // extcapaSensor->enable(true);
       Check_Disable_Locking();
 
       // Incase of Retract switch pressed or external lock capa sensor pressed, retract the handle
-      if (latchSwitchState && (buttonRetract->getswitchStatus() || (extcapaSensor->getCurrentState() && (!inrcapaSensor->getCurrentState())))) {
+      if (latchSwitchState && (buttonRetract->getswitchStatus() || ((!Disable_Locking) && *extcapaSensor))) {
         setState(DOOR_HANDLE_RETRACT);
       } else {  // just fade in and fade out LED
         if (ledCtrl->getState() == LED_ON)

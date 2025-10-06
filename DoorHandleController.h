@@ -1,10 +1,11 @@
+#include <stdint.h>
 #ifndef DOOR_HANDLE_CONTROLLER_H
 #define DOOR_HANDLE_CONTROLLER_H
 
 #include <Arduino.h>
 #include "constants.h"
 #include "Debounce.h"
-#include "CapaTouchSensor.h"
+// #include "CapaTouchSensor.h"
 #include "LEDControl.h"
 #include "motorController.h"
 #include "RelayController.h"
@@ -29,7 +30,7 @@ public:
   void Check_Disable_Locking();
   DoorHandleState getState() const;
   void setDependencies(Debounce* deployBtn, Debounce* retractBtn, Debounce* deployHandleBtn,
-                       CapaTouchSensor* extCapa, CapaTouchSensor* inrCapa,
+                       uint16_t* extCapa, uint16_t* inrCapa,
                        LEDControl* ledCtrl, MotorController* actuator,
                        RelayController* eLatchMotorDriver);
   void updateeLatchSwitch(void);
@@ -39,8 +40,8 @@ private:
   Debounce* buttonDeploy;
   Debounce* buttonRetract;
   Debounce* buttonHandleDeploy;
-  CapaTouchSensor* extcapaSensor;
-  CapaTouchSensor* inrcapaSensor;
+  uint16_t* extcapaSensor;
+  uint16_t* inrcapaSensor;
   LEDControl* ledCtrl;
   MotorController* actuator;
   RelayController* eLatchMotorDriver;
