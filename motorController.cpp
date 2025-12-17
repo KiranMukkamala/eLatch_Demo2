@@ -93,6 +93,8 @@ void MotorController::enable(bool on) {
 void MotorController::driveCW() {
   // RPWM drives deploy; LPWM off
   uint32_t out = scaleToResolution(deployPwm);
+  uint32_t maxOut = (1UL << pwmResBits) - 1;
+  if (out > maxOut) out = maxOut;
   ledc_set_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)rpwmLedcChannel, out);
   ledc_update_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)rpwmLedcChannel);
 
@@ -103,6 +105,8 @@ void MotorController::driveCW() {
 void MotorController::driveCCW() {
   // LPWM drives retract; RPWM off
   uint32_t out = scaleToResolution(retractPwm);
+  uint32_t maxOut = (1UL << pwmResBits) - 1;
+  if (out > maxOut) out = maxOut;
   ledc_set_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)lpwmLedcChannel, out);
   ledc_update_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)lpwmLedcChannel);
 

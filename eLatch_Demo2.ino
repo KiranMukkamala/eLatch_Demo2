@@ -193,26 +193,18 @@ static bool parse_values_fast(const char* frame, uint16_t* outValues, int expect
   if (*p == '$') ++p;
 
   while (*p && *p != ';' && idx < expectedCount) {
-    // skip spaces
     while (*p == ' ') ++p;
     if (*p == '\0' || *p == ';') break;
 
-    // parse optional sign
     bool neg = false;
-    if (*p == '-') {
-      neg = true;
-      ++p;
-    }
+    if (*p == '-') { neg = true; ++p; }
 
     if (*p < '0' || *p > '9') return false;
     int v = 0;
-    while (*p >= '0' && *p <= '9') {
-      v = v * 10 + (*p - '0');
-      ++p;
-    }
-    outValues[++idx] = (uint16_t)(neg ? -v : v);
+    while (*p >= '0' && *p <= '9') { v = v * 10 + (*p - '0'); ++p; }
 
-    // skip spaces (in case multiple)
+    outValues[idx++] = (uint16_t)(neg ? -v : v);
+
     while (*p == ' ') ++p;
   }
 

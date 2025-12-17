@@ -88,21 +88,21 @@ private:
   // helper: map legacy 0..255 values to configured resolution
   inline uint32_t scaleToResolution(uint32_t v) const {
 #ifdef ARDUINO_ARCH_ESP32
-    uint32_t maxOut = (1UL << pwmResBits) - 1;
-  if (pwmResBits == 8) {
-    if (v > 255) v = 255;
-    return v;
+  uint32_t maxOut = (1UL << pwmResBits) - 1;
+  if (v <= maxOut) return v;                 // already full-resolution
+  if (v <= 255) {                            // legacy 0..255 input
+    uint32_t scaled = (v * maxOut) / 255UL;
+    return (scaled > maxOut) ? maxOut : scaled;
   }
-  if (v <= maxOut) return v;
-  uint32_t scaled = (v * maxOut) / 255UL;
-  if (scaled > maxOut) scaled = maxOut;
-  return scaled;
+  // out-of-range: clamp
+  return maxOut;
 #else
-    return v; // AVR code expects 8-bit values
+  return v;
 #endif
   }
 };
 
 extern MotorController actuator;
+extern MotorController eLatchMotorDriver;
 
 #endif  // MOTORCONTROLLER_H
