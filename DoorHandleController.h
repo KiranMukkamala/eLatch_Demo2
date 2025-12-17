@@ -5,10 +5,8 @@
 #include <Arduino.h>
 #include "constants.h"
 #include "Debounce.h"
-// #include "CapaTouchSensor.h"
 #include "LEDControl.h"
 #include "motorController.h"
-#include "RelayController.h"
 
 //=== DOOR Handle state ===
 enum DoorHandleState {
@@ -32,7 +30,7 @@ public:
   void setDependencies(Debounce* deployBtn, Debounce* retractBtn, Debounce* deployHandleBtn,
                        uint16_t* extCapa, uint16_t* inrCapa,
                        LEDControl* ledCtrl, MotorController* actuator,
-                       RelayController* eLatchMotorDriver);
+                       MotorController* eLatchMotorDriver);
   void updateeLatchSwitch(void);
   bool getswitchStatus(void);
 private:
@@ -44,7 +42,7 @@ private:
   uint16_t* inrcapaSensor;
   LEDControl* ledCtrl;
   MotorController* actuator;
-  RelayController* eLatchMotorDriver;
+  MotorController* eLatchMotorDriver;
   bool Disable_Locking = false;  // for disabling the external capa sensor
   uint16_t Nb_Open_Attempt;
   //eLatch Switch status

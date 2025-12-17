@@ -11,7 +11,7 @@ void DoorHandleController::setDependencies(Debounce* deployBtn, Debounce* retrac
                                            uint16_t* extCapa, uint16_t* inrCapa,
                                            LEDControl* ledCtrl,
                                            MotorController* actuator,
-                                           RelayController* eLatchMotorDriver) {
+                                           MotorController* eLatchMotorDriver) {
   buttonDeploy = deployBtn;
   buttonRetract = retractBtn;
   buttonHandleDeploy = deployHandleBtn;
@@ -34,17 +34,17 @@ void DoorHandleController::setState(DoorHandleState state) {
       case DOOR_HANDLE_CLOSED:
         if (latchSwitchState && ((doorHandleState == DOOR_HANDLE_INIT) || (doorHandleState == DOOR_HANDLE_RETRACT))) {
           doorHandleState = state;
-          ledCtrl->ledOn();
-          // Serial.println(F("Entering DOOR_HANDLE_CLOSED"));
+          ledCtrl->ledOn(6, LedColor::RED);
+          Serial.println(F("Entering DOOR_HANDLE_CLOSED"));
         } else {
           // Serial.println(F("Please close the DOOR!!!"));
-          ledCtrl->ledOff();
+          ledCtrl->ledOff(6);
         }
         break;
       case DOOR_HANDLE_RETRACT:
         if ((doorHandleState == DOOR_HANDLE_LATCHED) || (doorHandleState == DOOR_HANDLE_WAIT_OPEN)) {
           doorHandleState = state;
-          // Serial.println(F("Entering DOOR_HANDLE_RETRACT"));
+          Serial.println(F("Entering DOOR_HANDLE_RETRACT"));
         }
         // else {
         //   // Serial.println(F("Cannot Retract DOOR HANDLE!!!"));
@@ -53,7 +53,7 @@ void DoorHandleController::setState(DoorHandleState state) {
       case DOOR_HANDLE_DEPLOYED:
         if (doorHandleState == DOOR_HANDLE_CLOSED) {
           doorHandleState = state;
-          // Serial.println(F("Entering DOOR_HANDLE_DEPLOYED"));
+          Serial.println(F("Entering DOOR_HANDLE_DEPLOYED"));
         }
         // else {
         //   // Serial.println("Cannot Deploy DOOR HANDLE!!! from " + String(doorHandleState));
@@ -62,7 +62,7 @@ void DoorHandleController::setState(DoorHandleState state) {
       case DOOR_HANDLE_WAIT_OPEN:
         if (doorHandleState == DOOR_HANDLE_DEPLOYED) {
           doorHandleState = state;
-          // Serial.println(F("Entering DOOR_HANDLE_WAIT_OPEN"));
+          Serial.println(F("Entering DOOR_HANDLE_WAIT_OPEN"));
         }
         // else {
         //   // Serial.println(F("Deployment of DOOR HANDLE not correct!!!"));
@@ -72,7 +72,7 @@ void DoorHandleController::setState(DoorHandleState state) {
         if ((doorHandleState == DOOR_HANDLE_WAIT_OPEN) || (doorHandleState == DOOR_HANDLE_LATCHED)) {
           doorHandleState = state;
           Nb_Open_Attempt = 0;
-          // Serial.println(F("Entering DOOR_HANDLE_OPEN"));
+          Serial.println(F("Entering DOOR_HANDLE_OPEN"));
         }
         // else {
         //   // Serial.println(F("Opening of DOOR HANDLE is not correct at this moment!!!"));
@@ -81,7 +81,7 @@ void DoorHandleController::setState(DoorHandleState state) {
       case DOOR_HANDLE_WAIT_TO_LATCH:
         if (doorHandleState == DOOR_HANDLE_OPEN) {
           doorHandleState = state;
-          // Serial.println(F("Entering DOOR_HANDLE_WAIT_TO_LATCH"));
+          Serial.println(F("Entering DOOR_HANDLE_WAIT_TO_LATCH"));
         }
         // else {
         //   // Serial.println(F("Latching of DOOR HANDLE before Open is not correct!!!"));
@@ -90,7 +90,7 @@ void DoorHandleController::setState(DoorHandleState state) {
       case DOOR_HANDLE_LATCHED:
         if (doorHandleState == DOOR_HANDLE_WAIT_TO_LATCH) {
           doorHandleState = state;
-          // Serial.println(F("Entering DOOR_HANDLE_LATCHED"));
+          Serial.println(F("Entering DOOR_HANDLE_LATCHED"));
         }
         break;
       default:
@@ -117,10 +117,10 @@ void DoorHandleController::refreshState() {
   // refresh the state machine
   switch (doorHandleState) {
     case DOOR_HANDLE_INIT:
-      if (latchSwitchState && actuator->setState(MOTOR_START_RETRACT) && eLatchMotorDriver->setState(RELAY_CCW))
+      if (latchSwitchState && actuator->setState(MOTOR_START_RETRACT) && eLatchMotorDriver->setState(MOTOR_START_RETRACT))
         setState(DOOR_HANDLE_CLOSED);
-      // else
-      // Serial.println(F("DOOR_HANDLE_INIT:: Waiting for DOOR close status"));
+      else
+        Serial.println(F("DOOR_HANDLE_INIT:: Waiting for DOOR close status"));
       // inrcapaSensor->enable(false);
       // inrcapaSensor->enable(true);
       // extcapaSensor->enable(false);
@@ -138,12 +138,12 @@ void DoorHandleController::refreshState() {
       //   // Serial.println("DOOR_HANDLE_CLOSED:: Waiting for Trigger :: " + String(buttonDeploy.getswitchStatus()) + " " + String(actuator.getState()));
       // }
       if (latchSwitchState)
-        ledCtrl->ledOn();
+        ledCtrl->ledOn(6, LedColor::RED);
       break;
 
     case DOOR_HANDLE_RETRACT:
 
-      if (actuator->setState(MOTOR_START_RETRACT) && eLatchMotorDriver->setState(RELAY_CCW)) {
+      if (actuator->setState(MOTOR_START_RETRACT) && eLatchMotorDriver->setState(MOTOR_START_RETRACT)) {
         // Serial.println(F("DOOR_HANDLE_RETRACT:: CCW Triggered"));
         // inrcapaSensor->enable(false);
         // extcapaSensor->enable(false);
@@ -158,13 +158,9 @@ void DoorHandleController::refreshState() {
 
       // actuator.triggerAction(4000);
       // go to next state only if the actuator and eLatch are deployed and ready
-      if (actuator->setState(MOTOR_START_DEPLOY) && eLatchMotorDriver->setState(RELAY_CW)) {
+      if (actuator->setState(MOTOR_START_DEPLOY) && eLatchMotorDriver->setState(MOTOR_START_DEPLOY)) {
         // Serial.println(F("DOOR_HANDLE_DEPLOYED:: CW Triggered"));
         delay(300);
-        // inrcapaSensor->enable(false);
-        // inrcapaSensor->enable(true);
-        // extcapaSensor->enable(false);
-        // extcapaSensor->enable(true);
         setState(DOOR_HANDLE_WAIT_OPEN);
       } else {
         Check_Disable_Locking();
@@ -178,27 +174,22 @@ void DoorHandleController::refreshState() {
       // Incase of Retract switch pressed or external lock capa sensor pressed, retract the handle
       if (latchSwitchState && (buttonRetract->getswitchStatus() || ((!Disable_Locking) && *extcapaSensor))) {
         setState(DOOR_HANDLE_RETRACT);
-      } else {  // just fade in and fade out LED
-        if (ledCtrl->getState() == LED_ON)
-          ledCtrl->fadeLedIn(LED_FADE_IN_TIME_MS);
-        else if (ledCtrl->getState() == LED_OFF)
-          ledCtrl->fadeLedOut(LED_FADE_OUT_TIME_MS);
       }
       break;
 
     case DOOR_HANDLE_OPEN:
       if (latchSwitchState) {
         if (Nb_Open_Attempt <= NB_OPEN_RETRY_COUNT) {
-          if ((eLatchMotorDriver->getState() == RELAY_STOP) && eLatchMotorDriver->setState(RELAY_CW)) {
-            if (ledCtrl->getState() == LED_OFF)
-              ledCtrl->ledOn();
+          if ((eLatchMotorDriver->getState() == MOTOR_STOP) && eLatchMotorDriver->setState(MOTOR_START_DEPLOY)) {
+            if (ledCtrl->getLedState(5) == LedState::OFF)
+              ledCtrl->ledOn(5, LedColor::GREEN);
             ++Nb_Open_Attempt;
             // Serial.println(F("DOOR_HANDLE_OPEN:: Waiting for eLatch to open!!!"));
           }
         }
-      } else if ((eLatchMotorDriver->getRecentRun() == RELAY_CW) && (eLatchMotorDriver->getState() == RELAY_STOP)) {
-        if (ledCtrl->getState() == LED_ON)
-          ledCtrl->ledOff();
+      } else if ((eLatchMotorDriver->getRecentCommand() == MOTOR_STOP) && (eLatchMotorDriver->getState() == MOTOR_STOP)) {
+        if (ledCtrl->getLedState(5) == LedState::ON)
+          ledCtrl->ledOff(5);
         Check_Disable_Locking();
         setState(DOOR_HANDLE_WAIT_TO_LATCH);
         // Serial.println(F("DOOR_HANDLE_OPEN:: Waiting for DOOR latched!!!"));
@@ -209,13 +200,14 @@ void DoorHandleController::refreshState() {
       // extcapaSensor->enable(false);
 
       if (latchSwitchState) {
-        if (ledCtrl->getState() == LED_OFF)
-          ledCtrl->ledOn();
+        if (ledCtrl->getLedState(6) == LedState::OFF)
+          ledCtrl->ledOn(6, LedColor::RED);
         setState(DOOR_HANDLE_LATCHED);
       } else {
-        if (ledCtrl->getState() == LED_ON)
-          ledCtrl->ledOff();
+        if (ledCtrl->getLedState(6) == LedState::ON)
+          ledCtrl->ledOff(6);
       }
+      ledCtrl->updateLedState(6);
       break;
     case DOOR_HANDLE_LATCHED:
       // inrcapaSensor->enable(true);
@@ -225,11 +217,6 @@ void DoorHandleController::refreshState() {
       // Incase of Retract switch pressed or external lock capa sensor pressed, retract the handle
       if (latchSwitchState && (buttonRetract->getswitchStatus() || ((!Disable_Locking) && *extcapaSensor))) {
         setState(DOOR_HANDLE_RETRACT);
-      } else {  // just fade in and fade out LED
-        if (ledCtrl->getState() == LED_ON)
-          ledCtrl->fadeLedIn(LED_FADE_IN_TIME_MS);
-        else if (ledCtrl->getState() == LED_OFF)
-          ledCtrl->fadeLedOut(LED_FADE_OUT_TIME_MS);
       }
       break;
 

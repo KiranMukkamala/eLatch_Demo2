@@ -1,12 +1,12 @@
 /**
- * @file main.ino
- * @brief Main application file for AUDi E-Latch Mockup 2.
+ * @file eLatch_Demo2.ino
+ * @brief Main application file for DH demonstrator.
  * 
  * This sketch reads the capacitive force using MOC technology from Microchip, 
  * detects threshold changes and activate E-Latch when specified threshold is reached.
  * 
  * @details
- * The system uses Serial1 to communicate with the MOC sensor module. 
+ * The system uses Serial1 to communicate with the MOC sensor module from Idneo. 
  * 
  * When a light threshold is detected elatch is unlocked, if the threshold is lower then this threshold elatch goes back to lock mode.
  * From Unlock mode if user increase the pressure on MOC sensor by pulling harder and open thresold is reached the elatch open command is issued.
@@ -14,49 +14,25 @@
  * 
  * 
  * @author
- * Adrian David
+ * Adrian David/ Kiran Mukkamala
  * 
  * @date
- * 2025-08-19
+ * 2025-12-17
  * 
  * @version
- * 1.3
+ * 2.1
  *
  * @note
- * Firmware is writen for Arduino Micro board. Debugging is via native Serial port.
+ * Firmware is writen for ESP32 WROOM board. Debugging is via native Serial port(TX0-RX0).
  *
  * @bug
  * Starting up is not always corectly completed when debugging via serial is done. For demonstrator debugging must be deactivated.
  * ============================================================================
  *                               PINOUT DIAGRAM
  * ============================================================================
- * 
- *                 +-------------------------+
- *                     Arduino Micro Board     
- *                 +-------------------------+                         
- *                     [TX1] ------> IDNEO BOARD     
- *                     [RX1] <------ IDNEO BOARD      
- *                     [D0]     x                        
- *                     [D1]     x                      
- *                     [D2]     x             
- *                     [D3]     x                       
- *                     [D4] ------> ELatch Relay       
- *                     [D5]     x
- *                     [D6]     x                            
- *                     [D7]     x
- *                     [D8] ------> H-Bridge Enable
- *                     [D9] ------> H-Bridge RPWM
- *                     [D10]------> H-Bridge LPWM
- *                     [D11]------> 
- *                     [D12]<------ ELatch Switch state
- *                     [A0] ------> LED 
- *                     [A1] <------ Unlock Threshold                         
- *                     [A2] <------ Open Threshold(Unused)                       
+ *  
+ * Refer the file located at: https://itwconnect.sharepoint.com/:u:/s/BODYINNOVATION-EU/IQDc576UdgzDR4En-ZPYNAK-Ad4s3TMtMm_02cHczzPD4YA?e=zyf2cb
  *                                                   
- *                                                   
- *                                                   
- *                                                   
- *                                               
  * 
  * ============================================================================
  *                          FUNCTIONAL OVERVIEW
@@ -76,19 +52,24 @@
  * 2025.07.28 - v1.2 TBT with second mechanical mockup
  * 2025.08.19 - v1.3 Integration with CAPA Sensors, Actuators and Feedback Mechanisms
  * 2025.10.02 - v2.0 A-Sample Integration with Ideo ECU for MOC, 2 CAPs reading
+ * 2025.12.17 - v2.1 Updates for ESP32 WROOM upgrade
  * ============================================================================
  * 
  */
 
-#include <Arduino.h>
+#include "esp32-hal.h"
 #include "./Debounce.h"
 #include "ADCReader.h"
 #include "TimeoutManager.h"
 #include "LEDControl.h"
 #include "constants.h"
 #include "motorController.h"
-#include "RelayController.h"
 #include "DoorHandleController.h"
+#include <driver/uart.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include <string.h>
 
 #define DEBUGGING_ENABLED false
 #define SERIAL_DEBUG_SPEED 115200
@@ -96,22 +77,22 @@
 /*====  Main Door Handle Controller object ====*/
 DoorHandleController doorHandleController;
 
-/*==== Object for Actuator motor driver ===*/
+// NOTE: ensure only one definition of 'actuator' exists in the project.
+// motorController.cpp should contain the concrete definition 'MotorController actuator;'
+// Here we declare extern to avoid duplicate definition at link time.
 MotorController actuator;
-
-/*==== Object for elatch motor driver ===*/
-RelayController eLatchMotorDriver;
+// If eLatchMotorDriver is defined in another translation unit, declare extern.
+// If not, create the single definition in one .cpp file instead of in the .ino.
+MotorController eLatchMotorDriver;
 
 /*=== Deploy and Retract Switch Objects ===*/
 Debounce buttonDeploy(DEPLOY_SW_PIN, LOW);
 Debounce buttonRetract(RETRACT_SW_PIN, LOW);
-
+Debounce buttonOpenRemoteSwitch(OPEN_SWITCH_PIN, LOW);
 Debounce buttonDoorHandleDeploy(DEPLOY_HANDLE_SW_PIN, LOW);
 
 // LED control objects
 LEDControl ledCtrl;
-LEDControl ledLockStatus;
-LEDControl ledCapaStatus;
 
 // Field count for frames (keep small if possible)
 constexpr uint8_t FIELD_COUNT = 12;
@@ -133,7 +114,6 @@ unsigned long frameEndMicros = 0;
 unsigned long lastFrameEndMicros = 0;
 
 // ISR ring buffer for Serial1 RX to improve robustness at high throughput
-#define RING_SIZE 512
 volatile uint8_t ring_buf[RING_SIZE];
 volatile uint16_t ring_head = 0;  // next write index
 volatile uint16_t ring_tail = 0;  // next read index (consumed by main)
@@ -147,13 +127,27 @@ volatile unsigned long hook_frame_start = 0;
 volatile unsigned long hook_frame_end = 0;
 volatile uint32_t ring_overflows = 0;
 
+// --- TX queue entry type (missing in original file) ---
+typedef struct {
+  char target[8];
+  uint8_t type;
+} tx_entry_t;
+
+// type: 0=INFO, 1=RT, 2=WT
+static tx_entry_t tx_queue[8];
+static uint8_t tx_q_head = 0;
+static uint8_t tx_q_tail = 0;
+
+static QueueHandle_t uart1_queue = NULL;
+static TaskHandle_t uart1_task_handle = NULL;
+
 // Push a byte into the ring buffer (ISR-safe). If buffer is full, increment overflow counter and drop the byte.
 static inline void ring_push_byte(uint8_t b) {
   uint16_t next = ring_head + 1;
   if (next >= RING_SIZE) next = 0;
   if (next == ring_tail) {
     // buffer full
-    ring_overflows++;
+    ++ring_overflows;
     return;
   }
   ring_buf[ring_head] = b;
@@ -196,30 +190,30 @@ void serial1_rx_hook(uint8_t c, unsigned long t) {
 static bool parse_values_fast(const char* frame, uint16_t* outValues, int expectedCount) {
   int idx = 0;
   const char* p = frame;
-  if (*p == '$') p++;
+  if (*p == '$') ++p;
 
   while (*p && *p != ';' && idx < expectedCount) {
     // skip spaces
-    while (*p == ' ') p++;
+    while (*p == ' ') ++p;
     if (*p == '\0' || *p == ';') break;
 
     // parse optional sign
     bool neg = false;
     if (*p == '-') {
       neg = true;
-      p++;
+      ++p;
     }
 
     if (*p < '0' || *p > '9') return false;
     int v = 0;
     while (*p >= '0' && *p <= '9') {
       v = v * 10 + (*p - '0');
-      p++;
+      ++p;
     }
-    outValues[idx++] = neg ? -v : v;
+    outValues[++idx] = (uint16_t)(neg ? -v : v);
 
     // skip spaces (in case multiple)
-    while (*p == ' ') p++;
+    while (*p == ' ') ++p;
   }
 
   return (idx == expectedCount);
@@ -228,30 +222,27 @@ static bool parse_values_fast(const char* frame, uint16_t* outValues, int expect
 // ------------------ TX helper functions ------------------
 #include <stdarg.h>
 
+// --- UART TX helper uses uart_write_bytes on ESP32 to avoid Serial1/driver conflicts
 static void uart_send_formatted(const char* fmt, ...) {
-  char buf[80];
+  char buf[256];
   va_list ap;
   va_start(ap, fmt);
-  vsnprintf(buf, sizeof(buf), fmt, ap);
+  int len = vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
-  // send on hardware UART
-  Serial1.print(buf);
-  // Serial1.print("\r\n");
-  // also echo on USB debug
+
+  if (len <= 0) return;
+  if (len > (int)(sizeof(buf) - 1)) len = (int)(sizeof(buf) - 1);
+#ifdef ARDUINO_ARCH_ESP32
+  uart_write_bytes(SERIAL1_UART_NUM, buf, (size_t)len);
+  uart_wait_tx_done(SERIAL1_UART_NUM, pdMS_TO_TICKS(100));
   Serial.print(F("[TX] "));
   Serial.println(buf);
+#else
+  Serial1.write((uint8_t*)buf, len);
+  Serial.print(F("[TX] "));
+  Serial.println(buf);
+#endif
 }
-
-// Forward declarations for TX queue (defined later)
-typedef struct {
-  char target[8];
-  uint8_t type;
-} tx_entry_t;
-static void enqueue_tx(const char* target, uint8_t type);
-static bool dequeue_tx(tx_entry_t* out);
-static bool peek_tx(tx_entry_t* out);
-
-
 static void send_TOUCH() {
   uart_send_formatted("TOUCH");
   // expect plain OK (info)
@@ -274,15 +265,91 @@ static void send_TOUCH_RT(const char* target) {
 static void send_TOUCH_WT(const char* target, uint32_t value) {
   // format: TOUCH+WT+CAP01+"DATA" where DATA is decimal
   // clamp/validate value externally
-  uart_send_formatted("TOUCH+WT+%s+\%lu", target, (unsigned long)value);
+  uart_send_formatted("TOUCH+WT+%s+%lu", target, (unsigned long)value);
   // expect numeric OK <value>
   enqueue_tx(target, 2);
+}
+
+// UART event task: reads events and bytes from the UART driver and pushes into ring buffer.
+// This runs on a FreeRTOS task (interrupt-driven by the uart driver).
+static void uart_event_task(void* pvParameters) {
+  uart_event_t event;
+  uint8_t dtmp[256];
+  while (true) {
+    if (xQueueReceive(uart1_queue, (void*)&event, portMAX_DELAY)) {
+      if (event.type == UART_DATA) {
+        int len = event.size;
+        if (len > (int)sizeof(dtmp)) len = sizeof(dtmp);
+        int r = uart_read_bytes(SERIAL1_UART_NUM, dtmp, len, 0);
+        for (int i = 0; i < r; ++i) {
+          uint8_t c = dtmp[i];
+          // push into ring buffer
+          ring_push_byte(c);
+          // compute index of the byte we just wrote
+          uint16_t pos = (ring_head == 0) ? (RING_SIZE - 1) : (ring_head - 1);
+
+          // frame boundary detection (start '$', end ';')
+          if (!hook_receiving) {
+            if (c == '$') {
+              hook_receiving = 1;
+              hook_frame_start_pos = pos;
+              hook_frame_start = micros();
+            }
+          } else {
+            if (c == ';') {
+              hook_frame_end_pos = pos;
+              hook_frame_end = micros();
+              hook_has_frame = 1;
+              hook_receiving = 0;
+            }
+          }
+        }
+      } else if (event.type == UART_FIFO_OVF || event.type == UART_BUFFER_FULL) {
+        // flush to recover
+        uart_flush_input(SERIAL1_UART_NUM);
+        // increment overflow counter (helps diagnostics)
+        ++ring_overflows;
+      } else {
+        // ignore other events
+      }
+    }
+  }
+  vTaskDelete(NULL);
+}
+
+// Call this from setup() to initialize UART driver and start task
+static void setup_uart1_driver() {
+#ifdef ARDUINO_ARCH_ESP32
+  // Configure and install UART driver for interrupt/event-driven RX
+  uart_config_t uart_config = {
+    .baud_rate = SERIAL_DEBUG_SPEED,
+    .data_bits = UART_DATA_8_BITS,
+    .parity = UART_PARITY_DISABLE,
+    .stop_bits = UART_STOP_BITS_1,
+    .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+    .rx_flow_ctrl_thresh = 0
+  };
+  uart_param_config(SERIAL1_UART_NUM, &uart_config);
+  uart_set_pin(SERIAL1_UART_NUM, SERIAL1_TX_PIN, SERIAL1_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+  // install driver with RX and non-zero TX buffer and event queue
+  uart_driver_install(SERIAL1_UART_NUM, SERIAL1_RX_BUF_SIZE, SERIAL1_TX_BUF_SIZE, SERIAL1_EVENT_QUEUE_SZ, &uart1_queue, 0);
+
+  // create uart event task
+  xTaskCreatePinnedToCore(uart_event_task, "uart1_event_task", 4096, NULL, 12, &uart1_task_handle, 0);
+#else
+  // Fallback - non-ESP32 use Serial1.begin as before
+#if defined(SERIAL1_RX_PIN) && defined(SERIAL1_TX_PIN)
+  Serial1.begin(SERIAL_DEBUG_SPEED, SERIAL_8N1, SERIAL1_RX_PIN, SERIAL1_TX_PIN);
+#else
+  Serial1.begin(SERIAL_DEBUG_SPEED);
+#endif
+#endif
 }
 
 // ------------------ USB command parser (no String) ------------------
 static void handle_usb_command(char* line) {
   // trim leading spaces
-  while (*line == ' ') line++;
+  while (*line == ' ') ++line;
   if (*line == '\0') return;
 
   // tokenise by space
@@ -366,10 +433,6 @@ static void handle_usb_command(char* line) {
 }
 
 // ------------------ Incoming Serial1 command handling ------------------
-// type: 0=INFO, 1=RT, 2=WT
-static tx_entry_t tx_queue[8];
-static uint8_t tx_q_head = 0;
-static uint8_t tx_q_tail = 0;
 
 static void enqueue_tx(const char* target, uint8_t type) {
   uint8_t next = (tx_q_tail + 1) & 7;
@@ -400,13 +463,13 @@ static bool peek_tx(tx_entry_t* out) {
 // parse response lines coming back on Serial1 and associate with pending commands
 static void parse_response_line(char* line) {
   // trim leading spaces
-  while (*line == ' ') line++;
+  while (*line == ' ') ++line;
   if (*line == '\0') return;
 
   // responses expected like:
   // OK
   // OK V1.00
-  // OK 123
+  // OK 12345
   if (strncmp(line, "OK", 2) != 0) {
     // unknown response; echo
     Serial.print(F("[RX RESP] "));
@@ -414,7 +477,7 @@ static void parse_response_line(char* line) {
     return;
   }
   char* p = line + 2;
-  while (*p == ' ') p++;
+  while (*p == ' ') ++p;
 
   tx_entry_t pending;
   bool hasPending = peek_tx(&pending);
@@ -442,11 +505,6 @@ static void parse_response_line(char* line) {
   if (!hasPending) return;
   // consume pending and map to stored variables if target matches
   dequeue_tx(&pending);
-  // if (pending.type == 1 || pending.type == 2) {
-  //   if (strcmp(pending.target, "CAP01") == 0) stored_CAP01 = (uint32_t)v;
-  //   else if (strcmp(pending.target, "CAP02") == 0) stored_CAP02 = (uint32_t)v;
-  //   else if (strcmp(pending.target, "MOC01") == 0) stored_MOC01 = (uint32_t)v;
-  // }
 }
 
 // Try to read a newline-terminated line from the ring buffer when no framed frame is waiting.
@@ -467,8 +525,7 @@ static bool try_read_line_from_ring(char* outBuf, size_t maxLen) {
 
   // copy up to maxLen-1 bytes or until newline
   while (idx != head && pos < (maxLen - 1)) {
-    uint8_t b = ring_buf[idx];
-    idx++;
+    uint8_t b = ring_buf[idx++];
     if (idx >= RING_SIZE) idx = 0;
     if (b == '\r') continue;
     if (b == '\n') {
@@ -486,8 +543,7 @@ static bool try_read_line_from_ring(char* outBuf, size_t maxLen) {
   noInterrupts();
   // move tail forward until after the newline
   while (ring_tail != head) {
-    uint8_t b = ring_buf[ring_tail];
-    ring_tail++;
+    uint8_t b = ring_buf[ring_tail++];
     if (ring_tail >= RING_SIZE) ring_tail = 0;
     if (b == '\n') break;
   }
@@ -498,44 +554,22 @@ static bool try_read_line_from_ring(char* outBuf, size_t maxLen) {
 
 
 void setup() {
-  // USB debug serial
-  Serial.begin(115200);
-  // Hardware serial (TX/RX) on the Micro for receiving from an external sender
-  Serial1.begin(115200);
-
-  // while (!Serial) {
-  //   Serial.println(F("."));
-  //   delay(100);
-  // }
-  // delay(100);
-
-  // Serial.println(F(""));
-  // Serial.println(F(""));
-  // Serial.println(F("AUDI E-Latch Demo Mockup 2"));
-  // Serial.println(F("==================================================="));
-  // Serial.println(F("ITW Automotive - SmartComponents EU"));
-  // Serial.println(F("Evaluation of MOC using mockup of door handle design"));
-  // Serial.println(F("and using AUDI e-Latch as combo"));
-  // Serial.println(F(" --------------------------------------------------"));
-  // Serial.println(F("by Adrian David, Smart Components Platform"));
-  // Serial.println(F("version: 1.3, 2025.08.22"));
-  // Serial.println(F("==================================================="));
-  // Serial.println(F(""));
-  // Serial.println(F(""));
-
-
-  // Serial.println(F("System Started."));
+  Serial.begin(SERIAL_DEBUG_SPEED);
+  // initialize UART driver / Serial1
+  setup_uart1_driver();
 
   // MOC deploy / retract user threshold settings
-  userPotiDeploy.begin(ADC_USER_DEPLOY_PIN, NUM_SAMPLES, ADC_REF_VOLTAGE);
+  userPotiDeploy.begin(ADC_USER_OPEN_THRESHOLD_PIN, NUM_SAMPLES, ADC_REF_VOLTAGE);
 
   //door handle actuator
-  actuator.begin(MOTOR_ENABLE_PIN, MOTOR_RPWM_PIN, MOTOR_LPWM_PIN,
+  actuator.begin(MOTOR1_ENABLE_PIN, MOTOR1_RPWM_PIN, MOTOR1_LPWM_PIN,
                  DEPLOY_PWM, RETRACT_PWM,
                  DEPLOY_TIME_MS, RETRACT_TIME_MS);
 
-  // Relay to drive elacth
-  eLatchMotorDriver.begin(RELAY_SW_CW_PIN, RELAY_SW_CCW_PIN);
+  // elacth Motor driver
+  eLatchMotorDriver.begin(MOTOR2_ENABLE_PIN, MOTOR2_RPWM_PIN, MOTOR2_LPWM_PIN,
+                          ELATCH_MOTOR_RUN_PWM, ELATCH_MOTOR_RUN_PWM,
+                          ELATCH_MOTOR_RUN_TIME_CW, ELATCH_MOTOR_RUN_TIME_CCW);
 
   // Elatch switch configuration
   pinMode(E_LATCH_SW_PIN, INPUT_PULLUP);
@@ -543,26 +577,55 @@ void setup() {
   // Configure the PINS for usage
   pinMode(DEPLOY_SW_PIN, INPUT_PULLUP);
   pinMode(RETRACT_SW_PIN, INPUT_PULLUP);
+  pinMode(OPEN_SWITCH_PIN, INPUT_PULLUP);
   pinMode(DEPLOY_HANDLE_SW_PIN, INPUT_PULLUP);
 
   //led door handle
-  ledCtrl.begin(LED_PWM_PIN, LED_MAX_BRIGHTNESS);
-  ledLockStatus.begin(LED_LOCK_STATUS_PIN, LED_MAX_BRIGHTNESS);
-  ledCapaStatus.begin(LED_CAPA_STATUS_PIN, LED_MAX_BRIGHTNESS);
+  ledCtrl.begin(LED_MAX_BRIGHTNESS);
+  ledCtrl.ledOn(0, LedColor::RED);
 
+  pinMode(ILLUMINATION_LED_PIN, OUTPUT);
+
+  // Illumincation led glow
+  digitalWrite(ILLUMINATION_LED_PIN, HIGH);
   // Door Handle Controller object configuration
-  doorHandleController.setDependencies(&buttonDeploy, &buttonRetract, &buttonDoorHandleDeploy, &(values[0]), &(values[4]), &ledCtrl, &actuator, &eLatchMotorDriver);
+  doorHandleController.setDependencies(&buttonDeploy, &buttonRetract, &buttonDoorHandleDeploy, &(values[4]), &(values[0]), &ledCtrl, &actuator, &eLatchMotorDriver);
 
+  // Set the sensitivity for the CAPA sensors
+  static char wtbuf1[64];
+  sprintf(wtbuf1, "TOUCH+WT+CAP01+250");
+  handle_usb_command(wtbuf1);
+
+  delay(1000);
+
+  static char wtbuf2[64];
+  sprintf(wtbuf2, "TOUCH+WT+CAP02+500");
+  handle_usb_command(wtbuf2);
+
+  delay(1000);
+  userPotiDeploy.update();
+  if (userPotiDeploy.hasNewAverage()) {
+    uint32_t potValue = userPotiDeploy.getAverage();  // Avoid division by zero or out-of-range
+    uint32_t scvalue = userPotiDeploy.getScaled(0, 4095, 10, 65535);
+
+    Serial.print(F("POTI_VALUE:"));
+    Serial.print(potValue);
+
+    Serial.print(F("\tSCALED_VALUE:"));
+    Serial.println(scvalue);
+    static char wtbuf[64];
+    sprintf(wtbuf, "TOUCH+WT+MOC01+%lu", scvalue);
+    handle_usb_command(wtbuf);
+    userPotiDeploy.setNewAverage(false);
+  }
   // Serial.println(F("Setup Completed."));
   // Serial.println(F(""));
 }  // end setup
 
-// void RefreshHandleState(void);
-
 // === Main Loop ===
 void loop(void) {
   unsigned long t_start = micros();
-  unsigned long t_button = 0, t_latch = 0, t_poti = 0, t_moc = 0;
+  unsigned long t_button = 0, t_latch = 0, t_moc = 0;
   unsigned long t_state = 0, t_motor = 0, t_actuator = 0, t_led = 0;
   unsigned long t_end = 0;
 
@@ -570,6 +633,7 @@ void loop(void) {
   buttonDeploy.update();
   buttonRetract.update();
   buttonDoorHandleDeploy.update();
+  buttonOpenRemoteSwitch.update();
 
   t_button = micros() - t0;
 
@@ -577,12 +641,28 @@ void loop(void) {
   doorHandleController.updateeLatchSwitch();
   t_latch = micros() - t0;
 
-  t0 = micros();
-  userPotiDeploy.update();
-  t_poti = micros() - t0;
+  // t0 = micros();
+  // // userPotiDeploy.update();
+  // if (userPotiDeploy.hasNewAverage()) {
+  //   uint32_t potValue = userPotiDeploy.getAverage();  // Avoid division by zero or out-of-range
+  //   uint32_t scvalue = userPotiDeploy.getScaled(0, 4095, 10, 65535);
+
+  //   Serial.print(F("POTI_VALUE:"));
+  //   Serial.print(potValue);
+
+  //   Serial.print(F("\tSCALED_VALUE:"));
+  //   Serial.println(scvalue);
+  //   static char wtbuf[64];
+  //   sprintf(wtbuf, "TOUCH+WT+MOC01+%lu", scvalue);
+  //   handle_usb_command(wtbuf);
+  //   userPotiDeploy.setNewAverage(false);
+  // }
+  // t_poti = micros() - t0;
 
   t0 = micros();
   moc_reading();
+  if (values[8] || buttonOpenRemoteSwitch.getswitchStatus())
+    doorHandleController.setState(DOOR_HANDLE_OPEN);
   t_moc = micros() - t0;
 
   t0 = micros();
@@ -598,19 +678,30 @@ void loop(void) {
   t_actuator = micros() - t0;
 
   t0 = micros();
-  ledCtrl.updateLedState();
+  //   for (uint16_t i = 0; i < NUM_PIXELS; ++i)
+  //     ledCtrl.updateLedState(i);
+
   if (doorHandleController.getswitchStatus())
-    ledLockStatus.ledOff();
+    ledCtrl.ledOff(5);
   else
-    ledLockStatus.ledOn();
+    ledCtrl.ledOn(5, LedColor::RED);
 
-  ledLockStatus.updateLedState();
+  if (values[1] == 6500)
+    ledCtrl.ledOn(3, LedColor::BLUE);
+  else ledCtrl.ledOff(3);
 
-  if (values[0])
-    ledCapaStatus.ledOn();
+  if (values[5] == 6500)
+    ledCtrl.ledOn(2, LedColor::GREEN);
   else
-    ledCapaStatus.ledOff();
-  ledCapaStatus.updateLedState();
+    ledCtrl.ledOff(2);
+
+  if (values[9] == 6500)
+    ledCtrl.ledOn(4, LedColor::WHITE);
+  else
+    ledCtrl.ledOff(4);
+
+  ledCtrl.updateLedState();
+
   t_led = micros() - t0;
 
   t_end = micros();
@@ -622,8 +713,8 @@ void loop(void) {
   Serial.print(t_button);
   Serial.print("\t LatchSw:");
   Serial.print(t_latch);
-  Serial.print("\t Potis:");
-  Serial.print(t_poti);
+  // Serial.print("\t Potis:");
+  // Serial.print(t_poti);
   Serial.print("\t MOC:");
   Serial.print(t_moc);
   Serial.print("\t HandleState:");
@@ -637,12 +728,34 @@ void loop(void) {
   Serial.print("\t Total:");
   Serial.println(t_end - t_start);
   // }
+// #else
+//   Serial.print("MOC_RAW:");
+//   Serial.print(values[9]);
+//   Serial.print("\tMOC_THR:");
+//   Serial.print(values[10]);
+//   Serial.print("\tMOC_SIG:");
+//   Serial.print(values[8]);
+
+//   Serial.print("\tINN_RAW:");
+//   Serial.print(values[1]);
+//   Serial.print("\tINN_THR:");
+//   Serial.print(values[2]);
+//   Serial.print("\tINN_SIG:");
+//   Serial.print(values[0]);
+
+//   Serial.print("\tEXT_RAW:");
+//   Serial.print(values[5]);
+//   Serial.print("\tEXT_THR:");
+//   Serial.print(values[6]);
+//   Serial.print("\tEXT_SIG:");
+//   Serial.println(values[4]);
 #endif
 
 }  //end main loop
 
 
 
+// Replace moc_reading() with the version below — reads USB console and processes frames
 void moc_reading() {
   // Read USB-Serial input (non-blocking) and handle commands
   static char lineBuf[64];
@@ -659,19 +772,18 @@ void moc_reading() {
       linePos = 0;
     } else {
       if (linePos < (sizeof(lineBuf) - 1)) {
-        lineBuf[linePos++] = (char)c;
+        lineBuf[++linePos] = (char)c;
       }
     }
   }
 
-  // If ISR-hooked frame is available, copy it out of the ring and process
-  // First, try to read a raw line from the UART ring (responses coming in on Serial1)
+  // Try to read a newline-terminated line from the ring buffer (responses coming from UART)
   char uartLine[80];
   if (try_read_line_from_ring(uartLine, sizeof(uartLine))) {
-    // parse response line and associate with pending TX entries
     parse_response_line(uartLine);
   }
 
+  // If a framed MOC packet was captured by the UART task, copy and parse it here
   if (hook_has_frame) {
     noInterrupts();
     uint16_t start = hook_frame_start_pos;
@@ -707,28 +819,33 @@ void moc_reading() {
 
     bool ok = parse_values_fast((const char*)rawFrame, values, FIELD_COUNT);
 
-    // minimal printing to avoid blocking; verbosePrint prints full frame and fields
     if (verbosePrint) {
-      Serial.print(F("[RawFrame ISR] "));
+      Serial.print(F("[RawFrame] "));
       Serial.print(rawFrame);
     }
-
     if (frameTimingEnabled) {
-      // unsigned long duration = frameEndMicros - frameStartMicros;
-      // unsigned long inter = (lastFrameEndMicros == 0) ? 0 : (frameStartMicros - lastFrameEndMicros);
-      unsigned long procLatency = micros() - frameEndMicros;  // time from hook frame end to now
-      Serial.print(F("INN_CAPA:"));
-      Serial.print(values[0]);
-      Serial.print(F("\tEXT_CAPA:"));
-      Serial.print(values[4]);
-      Serial.print(F("\tMOC:"));
+      unsigned long procLatency = micros() - frameEndMicros;
+      Serial.print(F("INN_CAPA_EN:"));
+      Serial.print(values[1] + 6000);
+      Serial.print(F("\tINN_CAPA_V:"));
+      Serial.print(values[2]);
+      Serial.print(F("\tINN_CAPA_TH:"));
+      Serial.print(values[3]);
+      Serial.print(F("\tEXT_CAPA_EN:"));
+      Serial.print(values[5] + 6200);
+      Serial.print(F("\tEXT_CAPA_V:"));
+      Serial.print(values[6]);
+      Serial.print(F("\tEXT_CAPA_TH:"));
+      Serial.print(values[7]);
+      Serial.print(F("\tMOC_EN:"));
       Serial.print(values[9]);
-      // Serial.print(F("\tDURATION:")); Serial.print(duration);
-      // Serial.print(F("\tINTERVAL:")); Serial.print(inter);
-      Serial.print(F("\tPROCESSTIME:"));
-      Serial.println(procLatency);
+      Serial.print(F("\tMOC_P:"));
+      Serial.print(values[10]);
+      Serial.print(F("\tMOC_TH:"));
+      Serial.println(values[11]);
+      // Serial.print(F("\tPROCESSTIME:"));
+      // Serial.println(procLatency);
     }
-
     if (verbosePrint) {
       if (ok) {
         for (int i = 0; i < FIELD_COUNT; ++i) {
@@ -744,25 +861,5 @@ void moc_reading() {
       }
     }
     lastFrameEndMicros = frameEndMicros;
-  }
-
-  userPotiDeploy.update();
-
-
-  if (userPotiDeploy.hasNewAverage()) {
-    uint32_t potValue = userPotiDeploy.getAverage();  // Avoid division by zero or out-of-range
-    uint32_t scvalue = userPotiDeploy.getScaled(0, 1023, 10, 65535);
-    // Send the value over serial
-    // Serial.println(scaledValue);  // Or Serial.write() if sending binary
-
-    Serial.print(F("POTI_VALUE:"));
-    Serial.print(potValue);
-
-    Serial.print(F("\tSCALED_VALUE:"));
-    Serial.println(scvalue);
-    static char wtbuf[64];
-    sprintf(wtbuf, "TOUCH+WT+MOC01+%lu", scvalue);
-    handle_usb_command(wtbuf);
-    userPotiDeploy.setNewAverage(false);
   }
 }

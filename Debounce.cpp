@@ -15,7 +15,7 @@
 
 // Include Files
 // ****************************************************************************
-#include <Arduino.h>
+// #include <Arduino.h>
 #include "Debounce.h"
 
 // 16-bit masks and patterns

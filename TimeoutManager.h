@@ -1,7 +1,8 @@
 #ifndef TIMEOUTMANAGER_H
 #define TIMEOUTMANAGER_H
 
-#include <Arduino.h>
+// #include <Arduino.h>
+#include <esp32-hal-timer.h>
 #include "constants.h"
 
 
