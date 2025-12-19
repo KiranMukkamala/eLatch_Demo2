@@ -1,10 +1,9 @@
 #include "motorController.h"
 
-// MotorController actuator; // define the extern instance
-
-void MotorController::begin(uint8_t en, uint8_t r, uint8_t l,
+void MotorController::begin(uint8_t Nb, uint8_t en, uint8_t r, uint8_t l,
                             uint16_t deployPwm_, uint16_t retractPwm_,
-                            unsigned long deployDur, unsigned long retractDur) {
+                            unsigned long deployDur, unsigned long retractDur, unsigned long stopDur) {
+  Number = Nb;
   enablePin = en;
   rpwmPin = r;
   lpwmPin = l;
@@ -12,6 +11,7 @@ void MotorController::begin(uint8_t en, uint8_t r, uint8_t l,
   retractPwm = retractPwm_;
   deployDuration = deployDur;
   retractDuration = retractDur;
+  stopDuration = stopDur;
   commandState = MOTOR_STOP;
   prevCommandDirection = MOTOR_STOP;
 
@@ -22,7 +22,9 @@ void MotorController::begin(uint8_t en, uint8_t r, uint8_t l,
   setupHighFreqPWM();
   stop();
 
-  Serial.println("Actuator driver initialization completed");
+  Serial.print("Motor ");
+  Serial.print(Number);
+  Serial.println(" driver initialization completed");
 }
 
 MotorState MotorController::getRecentCommand() const {
@@ -43,7 +45,9 @@ void MotorController::update() {
       commandState = MOTOR_START_DEPLOY;
       prevCommandDirection = MOTOR_START_DEPLOY;
       interlockState = MOTOR_BLOCKED;
-      Serial.println("Motor Running CW.");
+      Serial.print("Motor ");
+      Serial.print(Number);
+      Serial.println(" Running CW.");
       break;
 
     case MOTOR_START_RETRACT:
@@ -54,22 +58,31 @@ void MotorController::update() {
       commandState = MOTOR_START_RETRACT;
       prevCommandDirection = MOTOR_START_RETRACT;
       interlockState = MOTOR_BLOCKED;
-      Serial.println("Motor Running CCW.");
+      Serial.print("Motor ");
+      Serial.print(Number);
+      Serial.println(" Running CCW.");
       break;
 
     case MOTOR_RUNNING:
       if ((millis() - startTime >= deployDuration && commandState == MOTOR_START_DEPLOY) || (millis() - startTime >= retractDuration && commandState == MOTOR_START_RETRACT)) {
         state = MOTOR_STOPPING;
-        Serial.println("Motor run complete.");
+        Serial.print("Motor ");
+        Serial.print(Number);
+        Serial.println(" run complete.");
+        startTime = millis();
       }
       break;
 
     case MOTOR_STOPPING:
       stop();
       enable(false);
+      if ((millis() - startTime >= stopDuration)) {
       state = MOTOR_STOP;
       commandState = MOTOR_STOP;
-      Serial.println(F("Motor stopped."));
+      Serial.print("Motor ");
+      Serial.print(Number);
+      Serial.println(" stopped.");
+      }
       break;
   }
 }
@@ -162,7 +175,7 @@ void MotorController::setupHighFreqPWM() {
   ledc_update_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)lpwmLedcChannel);
 }
 
-#else // AVR / legacy code (keeps original timer usage)
+#else  // AVR / legacy code (keeps original timer usage)
 
 void MotorController::driveCW() {
   // original AVR Timer1 PWM control (keeps compatibility for AVR)
@@ -199,7 +212,7 @@ void MotorController::setupHighFreqPWM() {
   TCCR1B |= (1 << CS10);  // No prescaler
 }
 
-#endif // ARDUINO_ARCH_ESP32
+#endif  // ARDUINO_ARCH_ESP32
 
 MotorState MotorController::getState() const {
   return state;

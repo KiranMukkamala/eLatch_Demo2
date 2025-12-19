@@ -58,6 +58,7 @@
  */
 
 #include "esp32-hal.h"
+#include "esp_log.h"
 #include "./Debounce.h"
 #include "ADCReader.h"
 #include "TimeoutManager.h"
@@ -197,11 +198,17 @@ static bool parse_values_fast(const char* frame, uint16_t* outValues, int expect
     if (*p == '\0' || *p == ';') break;
 
     bool neg = false;
-    if (*p == '-') { neg = true; ++p; }
+    if (*p == '-') {
+      neg = true;
+      ++p;
+    }
 
     if (*p < '0' || *p > '9') return false;
     int v = 0;
-    while (*p >= '0' && *p <= '9') { v = v * 10 + (*p - '0'); ++p; }
+    while (*p >= '0' && *p <= '9') {
+      v = v * 10 + (*p - '0');
+      ++p;
+    }
 
     outValues[idx++] = (uint16_t)(neg ? -v : v);
 
@@ -546,20 +553,27 @@ static bool try_read_line_from_ring(char* outBuf, size_t maxLen) {
 
 
 void setup() {
+
+  // Lower global logging
+  esp_log_level_set("*", ESP_LOG_ERROR);  // or ESP_LOG_WARN / ESP_LOG_INFO
+
+  // Optionally : specifically quiet the RMT logs
+  esp_log_level_set("esp32-hal-rmt", ESP_LOG_ERROR);
   Serial.begin(SERIAL_DEBUG_SPEED);
   // initialize UART driver / Serial1
   setup_uart1_driver();
 
+  delay(500);
   // MOC deploy / retract user threshold settings
   userPotiDeploy.begin(ADC_USER_OPEN_THRESHOLD_PIN, NUM_SAMPLES, ADC_REF_VOLTAGE);
 
   //door handle actuator
-  actuator.begin(MOTOR1_ENABLE_PIN, MOTOR1_RPWM_PIN, MOTOR1_LPWM_PIN,
+  actuator.begin(1, MOTOR1_ENABLE_PIN, MOTOR1_RPWM_PIN, MOTOR1_LPWM_PIN,
                  DEPLOY_PWM, RETRACT_PWM,
                  DEPLOY_TIME_MS, RETRACT_TIME_MS);
 
   // elacth Motor driver
-  eLatchMotorDriver.begin(MOTOR2_ENABLE_PIN, MOTOR2_RPWM_PIN, MOTOR2_LPWM_PIN,
+  eLatchMotorDriver.begin(2, MOTOR2_ENABLE_PIN, MOTOR2_RPWM_PIN, MOTOR2_LPWM_PIN,
                           ELATCH_MOTOR_RUN_PWM, ELATCH_MOTOR_RUN_PWM,
                           ELATCH_MOTOR_RUN_TIME_CW, ELATCH_MOTOR_RUN_TIME_CCW);
 
@@ -572,9 +586,11 @@ void setup() {
   pinMode(OPEN_SWITCH_PIN, INPUT_PULLUP);
   pinMode(DEPLOY_HANDLE_SW_PIN, INPUT_PULLUP);
 
-  //led door handle
+  //led door handle - initialize FIRST, then wait before turning on
   ledCtrl.begin(LED_MAX_BRIGHTNESS);
+  delay(100);  // Give LED strip time to initialize
   ledCtrl.ledOn(0, LedColor::RED);
+  ledCtrl.updateLedState(0);  // Force immediate update
 
   pinMode(ILLUMINATION_LED_PIN, OUTPUT);
 
@@ -657,6 +673,10 @@ void loop(void) {
     doorHandleController.setState(DOOR_HANDLE_OPEN);
   t_moc = micros() - t0;
 
+  if (buttonDoorHandleDeploy.getswitchStatus())
+    ledCtrl.ledOn(4, LedColor::BLUE);
+  else ledCtrl.ledOff(4);
+
   t0 = micros();
   doorHandleController.refreshState();
   t_state = micros() - t0;
@@ -678,16 +698,16 @@ void loop(void) {
   else
     ledCtrl.ledOn(5, LedColor::RED);
 
-  if (values[1] == 6500)
+  if (values[0] == 6500)
     ledCtrl.ledOn(3, LedColor::BLUE);
   else ledCtrl.ledOff(3);
 
-  if (values[5] == 6500)
+  if (values[4] == 6500)
     ledCtrl.ledOn(2, LedColor::GREEN);
   else
     ledCtrl.ledOff(2);
 
-  if (values[9] == 6500)
+  if (values[8] == 6500)
     ledCtrl.ledOn(4, LedColor::WHITE);
   else
     ledCtrl.ledOff(4);
@@ -813,28 +833,28 @@ void moc_reading() {
 
     if (verbosePrint) {
       Serial.print(F("[RawFrame] "));
-      Serial.print(rawFrame);
+      Serial.println(rawFrame);
     }
     if (frameTimingEnabled) {
       unsigned long procLatency = micros() - frameEndMicros;
       Serial.print(F("INN_CAPA_EN:"));
-      Serial.print(values[1] + 6000);
+      Serial.print(values[0] + 6000);
       Serial.print(F("\tINN_CAPA_V:"));
-      Serial.print(values[2]);
+      Serial.print(values[1]);
       Serial.print(F("\tINN_CAPA_TH:"));
-      Serial.print(values[3]);
+      Serial.print(values[2]);
       Serial.print(F("\tEXT_CAPA_EN:"));
-      Serial.print(values[5] + 6200);
+      Serial.print(values[4] + 6200);
       Serial.print(F("\tEXT_CAPA_V:"));
-      Serial.print(values[6]);
+      Serial.print(values[5]);
       Serial.print(F("\tEXT_CAPA_TH:"));
-      Serial.print(values[7]);
+      Serial.print(values[6]);
       Serial.print(F("\tMOC_EN:"));
-      Serial.print(values[9]);
+      Serial.print(values[8]);
       Serial.print(F("\tMOC_P:"));
-      Serial.print(values[10]);
+      Serial.print(values[9]);
       Serial.print(F("\tMOC_TH:"));
-      Serial.println(values[11]);
+      Serial.println(values[10]);
       // Serial.print(F("\tPROCESSTIME:"));
       // Serial.println(procLatency);
     }

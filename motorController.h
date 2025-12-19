@@ -12,7 +12,7 @@
 
 // Optional defaults for ESP32 LEDC (can be overridden in constants.h)
 #ifndef MOTOR_PWM_FREQ_HZ
-#define MOTOR_PWM_FREQ_HZ 5000      // 2 kHz default PWM frequency
+#define MOTOR_PWM_FREQ_HZ 15000      // 15 kHz default PWM frequency
 #endif
 
 #ifndef MOTOR_PWM_RES_BITS
@@ -44,9 +44,9 @@ enum MotorInterlock {
 class MotorController {
 public:
   // begin: provide enable, right PWM pin, left PWM pin, deploy/retract PWM values and durations (ms).
-  void begin(uint8_t en, uint8_t r, uint8_t l,
+  void begin(uint8_t Nb, uint8_t en, uint8_t r, uint8_t l,
              uint16_t deployPwm_, uint16_t retractPwm_,
-             unsigned long deployDur, unsigned long retractDur);
+             unsigned long deployDur, unsigned long retractDur, unsigned long stopDur = 0);
 
   void update();
   bool setState(MotorState value);
@@ -57,6 +57,7 @@ private:
   uint8_t enablePin = 255;
   uint8_t rpwmPin = 255;
   uint8_t lpwmPin = 255;
+  uint8_t Number = 0;
 
 #ifdef ARDUINO_ARCH_ESP32
   // ESP32 LEDC related config
@@ -70,6 +71,7 @@ private:
   uint16_t retractPwm = 0;
   unsigned long deployDuration = 0;
   unsigned long retractDuration = 0;
+  unsigned long stopDuration=0;
 
   MotorState state = MOTOR_STOP;
   MotorState commandState = MOTOR_STOP;
