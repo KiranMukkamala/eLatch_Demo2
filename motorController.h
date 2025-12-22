@@ -12,7 +12,7 @@
 
 // Optional defaults for ESP32 LEDC (can be overridden in constants.h)
 #ifndef MOTOR_PWM_FREQ_HZ
-#define MOTOR_PWM_FREQ_HZ 15000      // 15 kHz default PWM frequency
+#define MOTOR_PWM_FREQ_HZ 15000      // 15 kHz PWM frequency
 #endif
 
 #ifndef MOTOR_PWM_RES_BITS
@@ -85,7 +85,6 @@ private:
   void driveCCW();
   void stop();
   void setupHighFreqPWM();
-  void triggerAction(int16_t value);
 
   // helper: map legacy 0..255 values to configured resolution
   inline uint32_t scaleToResolution(uint32_t v) const {

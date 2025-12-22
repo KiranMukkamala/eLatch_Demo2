@@ -7,7 +7,7 @@ DoorHandleController::DoorHandleController()
     ledCtrl(nullptr), actuator(nullptr), eLatchMotorDriver(nullptr),
     Disable_Locking(false), Nb_Open_Attempt(0) {}
 
-void DoorHandleController::setDependencies(Debounce* deployBtn, Debounce* retractBtn, Debounce* deployHandleBtn,
+void DoorHandleController::setDependencies(Debounce* deployBtn, Debounce* retractBtn, bool* deployHandleBtn,
                                            uint16_t* extCapa, uint16_t* inrCapa,
                                            LEDControl* ledCtrl,
                                            MotorController* actuator,
@@ -35,7 +35,7 @@ void DoorHandleController::setState(DoorHandleState state) {
         if (latchSwitchState && ((doorHandleState == DOOR_HANDLE_INIT) || (doorHandleState == DOOR_HANDLE_RETRACT))) {
           doorHandleState = state;
           ledCtrl->ledOn(6, LedColor::RED);
-          Serial.println(F("Entering DOOR_HANDLE_CLOSED"));
+          // Serial.println(F("Entering DOOR_HANDLE_CLOSED"));
         } else {
           // Serial.println(F("Please close the DOOR!!!"));
           ledCtrl->ledOff(6);
@@ -44,7 +44,7 @@ void DoorHandleController::setState(DoorHandleState state) {
       case DOOR_HANDLE_RETRACT:
         if ((doorHandleState == DOOR_HANDLE_LATCHED) || (doorHandleState == DOOR_HANDLE_WAIT_OPEN)) {
           doorHandleState = state;
-          Serial.println(F("Entering DOOR_HANDLE_RETRACT"));
+          // Serial.println(F("Entering DOOR_HANDLE_RETRACT"));
         }
         // else {
         //   // Serial.println(F("Cannot Retract DOOR HANDLE!!!"));
@@ -53,7 +53,7 @@ void DoorHandleController::setState(DoorHandleState state) {
       case DOOR_HANDLE_DEPLOYED:
         if (doorHandleState == DOOR_HANDLE_CLOSED) {
           doorHandleState = state;
-          Serial.println(F("Entering DOOR_HANDLE_DEPLOYED"));
+          // Serial.println(F("Entering DOOR_HANDLE_DEPLOYED"));
         }
         // else {
         //   // Serial.println("Cannot Deploy DOOR HANDLE!!! from " + String(doorHandleState));
@@ -62,7 +62,7 @@ void DoorHandleController::setState(DoorHandleState state) {
       case DOOR_HANDLE_WAIT_OPEN:
         if (doorHandleState == DOOR_HANDLE_DEPLOYED) {
           doorHandleState = state;
-          Serial.println(F("Entering DOOR_HANDLE_WAIT_OPEN"));
+          // Serial.println(F("Entering DOOR_HANDLE_WAIT_OPEN"));
         }
         // else {
         //   // Serial.println(F("Deployment of DOOR HANDLE not correct!!!"));
@@ -72,7 +72,7 @@ void DoorHandleController::setState(DoorHandleState state) {
         if ((doorHandleState == DOOR_HANDLE_WAIT_OPEN) || (doorHandleState == DOOR_HANDLE_LATCHED)) {
           doorHandleState = state;
           Nb_Open_Attempt = 0;
-          Serial.println(F("Entering DOOR_HANDLE_OPEN"));
+          // Serial.println(F("Entering DOOR_HANDLE_OPEN"));
         }
         // else {
         //   // Serial.println(F("Opening of DOOR HANDLE is not correct at this moment!!!"));
@@ -81,7 +81,7 @@ void DoorHandleController::setState(DoorHandleState state) {
       case DOOR_HANDLE_WAIT_TO_LATCH:
         if (doorHandleState == DOOR_HANDLE_OPEN) {
           doorHandleState = state;
-          Serial.println(F("Entering DOOR_HANDLE_WAIT_TO_LATCH"));
+          // Serial.println(F("Entering DOOR_HANDLE_WAIT_TO_LATCH"));
         }
         // else {
         //   // Serial.println(F("Latching of DOOR HANDLE before Open is not correct!!!"));
@@ -90,7 +90,7 @@ void DoorHandleController::setState(DoorHandleState state) {
       case DOOR_HANDLE_LATCHED:
         if (doorHandleState == DOOR_HANDLE_WAIT_TO_LATCH) {
           doorHandleState = state;
-          Serial.println(F("Entering DOOR_HANDLE_LATCHED"));
+          // Serial.println(F("Entering DOOR_HANDLE_LATCHED"));
         }
         break;
       default:
@@ -112,15 +112,25 @@ void DoorHandleController::refreshState() {
   // refresh the state machine
   switch (doorHandleState) {
     case DOOR_HANDLE_INIT:
-      if (latchSwitchState && actuator->setState(MOTOR_START_RETRACT) && eLatchMotorDriver->setState(MOTOR_START_RETRACT))
-        setState(DOOR_HANDLE_CLOSED);
-      else
-        Serial.println(F("DOOR_HANDLE_INIT:: Waiting for DOOR close status"));
+      if (latchSwitchState) {
+        if ((!deploymentSwitchState) && (actuator->getState() != MOTOR_RUNNING)) {
+          if ((eLatchMotorDriver->getRecentCommand() != MOTOR_START_RETRACT) && eLatchMotorDriver->setState(MOTOR_START_RETRACT))
+            setState(DOOR_HANDLE_CLOSED);
+          // else
+          //   Serial.println(F("DOOR_HANDLE_INIT:: Waiting for Door handle elatch motor status"));
+        } else if ((deploymentSwitchState) && (actuator->getRecentCommand() != MOTOR_START_RETRACT) && (actuator->setState(MOTOR_START_RETRACT)));
+        
+          // Serial.println(F("DOOR_HANDLE_INIT:: Waiting for Door handle flush status"));
+        // else
+        //   Serial.println(F("DOOR_HANDLE_INIT:: Waiting for Door handle flush status else"));
+      } 
+      // else
+      //   Serial.println(F("DOOR_HANDLE_INIT:: Waiting for DOOR close status"));
       break;
 
     case DOOR_HANDLE_CLOSED:
       // Process Deploy switch event, check for MOTOR status then move to next state.
-      if ((buttonDeploy->getswitchStatus() || (!buttonHandleDeploy->getswitchStatus())) && (actuator->getState() == MOTOR_STOP)) {
+      if ((buttonDeploy->getswitchStatus() || (deploymentSwitchState)) && (actuator->getState() == MOTOR_STOP)) {
         setState(DOOR_HANDLE_DEPLOYED);
       }
       // else {
@@ -133,9 +143,12 @@ void DoorHandleController::refreshState() {
 
     case DOOR_HANDLE_RETRACT:
 
-      if (actuator->setState(MOTOR_START_RETRACT) && eLatchMotorDriver->setState(MOTOR_START_RETRACT)) {
-        Serial.println(F("DOOR_HANDLE_RETRACT:: CCW Triggered"));
-        setState(DOOR_HANDLE_CLOSED);
+      if ((!deploymentSwitchState) && (actuator->getState() != MOTOR_RUNNING)) {
+        // Serial.println(F("DOOR_HANDLE_RETRACT::Complete"));
+        if ((eLatchMotorDriver->getRecentCommand() != MOTOR_START_RETRACT) && eLatchMotorDriver->setState(MOTOR_START_RETRACT))
+          setState(DOOR_HANDLE_CLOSED);
+      } else if ((actuator->getRecentCommand() != MOTOR_START_RETRACT) && (actuator->setState(MOTOR_START_RETRACT))) {
+        // Serial.println(F("DOOR_HANDLE_RETRACT:: CCW Triggered"));
       }
       // else {
       //   // Serial.println(F("DOOR_HANDLE_RETRACT:: Waiting for Actuator & elatch status!!!"));
@@ -144,13 +157,14 @@ void DoorHandleController::refreshState() {
 
     case DOOR_HANDLE_DEPLOYED:
       // go to next state only if the actuator and eLatch are deployed and ready
-      if (actuator->setState(MOTOR_START_DEPLOY) && eLatchMotorDriver->setState(MOTOR_START_DEPLOY)) {
-        Serial.println(F("DOOR_HANDLE_DEPLOYED:: CW Triggered"));
-        delay(300);
-        setState(DOOR_HANDLE_WAIT_OPEN);
-      } else {
+      if ((actuator->getRecentCommand() != MOTOR_START_DEPLOY) && actuator->setState(MOTOR_START_DEPLOY)) {
+        // if (actuator->setState(MOTOR_START_DEPLOY)) {
+        // Serial.println(F("DOOR_HANDLE_DEPLOYED:: CW Triggered"));
+      } else if (deploymentSwitchState && (actuator->getState() != MOTOR_RUNNING)) {
+        if ((eLatchMotorDriver->getRecentCommand() != MOTOR_START_DEPLOY) && eLatchMotorDriver->setState(MOTOR_START_DEPLOY))
+          setState(DOOR_HANDLE_WAIT_OPEN);
         Check_Disable_Locking();
-        Serial.println(F("DOOR_HANDLE_DEPLOYED:: Waiting for Actuator & elatch status!!!"));
+        // Serial.println(F("DOOR_HANDLE_DEPLOYED:: Waiting for Actuator & elatch status!!!"));
       }
       break;
 
@@ -167,30 +181,28 @@ void DoorHandleController::refreshState() {
       if (latchSwitchState) {
         if (Nb_Open_Attempt <= NB_OPEN_RETRY_COUNT) {
           if ((eLatchMotorDriver->getState() == MOTOR_STOP) && eLatchMotorDriver->setState(MOTOR_START_DEPLOY)) {
-            if (ledCtrl->getLedState(5) == LedState::OFF)
-              ledCtrl->ledOn(5, LedColor::GREEN);
             ++Nb_Open_Attempt;
-            Serial.println(F("DOOR_HANDLE_OPEN:: Waiting for eLatch to open!!!"));
+            // Serial.println(F("DOOR_HANDLE_OPEN:: Waiting for eLatch to open!!!"));
           }
         }
-      } else if ((eLatchMotorDriver->getRecentCommand() == MOTOR_STOP) && (eLatchMotorDriver->getState() == MOTOR_STOP)) {
+      } else if ((eLatchMotorDriver->getRecentCommand() == MOTOR_START_DEPLOY) && (eLatchMotorDriver->getState() == MOTOR_STOP)) {
         if (ledCtrl->getLedState(5) == LedState::ON)
           ledCtrl->ledOff(5);
         Check_Disable_Locking();
         setState(DOOR_HANDLE_WAIT_TO_LATCH);
-        Serial.println(F("DOOR_HANDLE_OPEN:: Waiting for DOOR latched!!!"));
+        // Serial.println(F("DOOR_HANDLE_OPEN:: Waiting for DOOR latched!!!"));
       }
       break;
     case DOOR_HANDLE_WAIT_TO_LATCH:
       if (latchSwitchState) {
-        if (ledCtrl->getLedState(6) == LedState::OFF)
-          ledCtrl->ledOn(6, LedColor::RED);
+        if (ledCtrl->getLedState(5) == LedState::OFF)
+          ledCtrl->ledOn(5, LedColor::RED);
         setState(DOOR_HANDLE_LATCHED);
       } else {
-        if (ledCtrl->getLedState(6) == LedState::ON)
-          ledCtrl->ledOff(6);
+        if (ledCtrl->getLedState(5) == LedState::ON)
+          ledCtrl->ledOff(5);
       }
-      ledCtrl->updateLedState(6);
+      ledCtrl->updateLedState(5);
       break;
     case DOOR_HANDLE_LATCHED:
       Check_Disable_Locking();
@@ -222,3 +234,19 @@ void DoorHandleController::updateeLatchSwitch(void) {
 bool DoorHandleController::getswitchStatus(void) {
   return this->latchSwitchState;
 }
+
+
+void DoorHandleController::updateeDeploymentStatus(void) {
+  bool deployrawState = digitalRead(DEPLOY_HANDLE_SW_PIN);
+  deployrisingSwEdge = (deployrawState && !deploycurrentSwState);
+  deployfallingSwEdge = (!deployrawState && deploycurrentSwState);
+  deploylastSwState = deploycurrentSwState;
+  deploycurrentSwState = deployrawState;
+  // if (deploylastSwState != deploycurrentSwState) {
+  //   Serial.println(String(F("Deploy Switch status changed from ")) + String(deploylastSwState) + String(F(" to ")) + String(deploycurrentSwState));
+  // }
+  deploymentSwitchState = deploycurrentSwState;
+}
+bool DoorHandleController::getDeploymentStatus(void) {
+  return this->deploymentSwitchState;
+}

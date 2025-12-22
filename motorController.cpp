@@ -22,9 +22,9 @@ void MotorController::begin(uint8_t Nb, uint8_t en, uint8_t r, uint8_t l,
   setupHighFreqPWM();
   stop();
 
-  Serial.print("Motor ");
-  Serial.print(Number);
-  Serial.println(" driver initialization completed");
+  // Serial.print("Motor ");
+  // Serial.print(Number);
+  // Serial.println(" driver initialization completed");
 }
 
 MotorState MotorController::getRecentCommand() const {
@@ -45,9 +45,9 @@ void MotorController::update() {
       commandState = MOTOR_START_DEPLOY;
       prevCommandDirection = MOTOR_START_DEPLOY;
       interlockState = MOTOR_BLOCKED;
-      Serial.print("Motor ");
-      Serial.print(Number);
-      Serial.println(" Running CW.");
+      // Serial.print("Motor ");
+      // Serial.print(Number);
+      // Serial.println(" Running CW.");
       break;
 
     case MOTOR_START_RETRACT:
@@ -58,17 +58,17 @@ void MotorController::update() {
       commandState = MOTOR_START_RETRACT;
       prevCommandDirection = MOTOR_START_RETRACT;
       interlockState = MOTOR_BLOCKED;
-      Serial.print("Motor ");
-      Serial.print(Number);
-      Serial.println(" Running CCW.");
+      // Serial.print("Motor ");
+      // Serial.print(Number);
+      // Serial.println(" Running CCW.");
       break;
 
     case MOTOR_RUNNING:
       if ((millis() - startTime >= deployDuration && commandState == MOTOR_START_DEPLOY) || (millis() - startTime >= retractDuration && commandState == MOTOR_START_RETRACT)) {
         state = MOTOR_STOPPING;
-        Serial.print("Motor ");
-        Serial.print(Number);
-        Serial.println(" run complete.");
+        // Serial.print("Motor ");
+        // Serial.print(Number);
+        // Serial.println(" run complete.");
         startTime = millis();
       }
       break;
@@ -76,24 +76,14 @@ void MotorController::update() {
     case MOTOR_STOPPING:
       stop();
       enable(false);
-      if ((millis() - startTime >= stopDuration)) {
+      if (((millis() - startTime) >= stopDuration)) {
       state = MOTOR_STOP;
       commandState = MOTOR_STOP;
-      Serial.print("Motor ");
-      Serial.print(Number);
-      Serial.println(" stopped.");
+      // Serial.print("Motor ");
+      // Serial.print(Number);
+      // Serial.println(" stopped.");
       }
       break;
-  }
-}
-
-void MotorController::triggerAction(int16_t value) {
-  if (state == MOTOR_STOP) {
-    if (value == 4000) {
-      state = MOTOR_START_DEPLOY;
-    } else if (value == 3000) {
-      state = MOTOR_START_RETRACT;
-    }
   }
 }
 

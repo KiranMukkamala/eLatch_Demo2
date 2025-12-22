@@ -90,7 +90,8 @@ MotorController eLatchMotorDriver;
 Debounce buttonDeploy(DEPLOY_SW_PIN, LOW);
 Debounce buttonRetract(RETRACT_SW_PIN, LOW);
 Debounce buttonOpenRemoteSwitch(OPEN_SWITCH_PIN, LOW);
-Debounce buttonDoorHandleDeploy(DEPLOY_HANDLE_SW_PIN, LOW);
+// Debounce buttonDoorHandleDeploy(DEPLOY_HANDLE_SW_PIN, LOW);
+bool buttonDoorHandleDeploy = false;
 
 // LED control objects
 LEDControl ledCtrl;
@@ -109,7 +110,7 @@ char rawFrame[maxFrameLength];
 bool verbosePrint = false;  // set to true to print full frame and fields (slower)
 
 // Timing control
-bool frameTimingEnabled = false;  // print per-frame timing
+bool frameTimingEnabled = true;  // print per-frame timing
 unsigned long frameStartMicros = 0;
 unsigned long frameEndMicros = 0;
 unsigned long lastFrameEndMicros = 0;
@@ -575,7 +576,7 @@ void setup() {
   // elacth Motor driver
   eLatchMotorDriver.begin(2, MOTOR2_ENABLE_PIN, MOTOR2_RPWM_PIN, MOTOR2_LPWM_PIN,
                           ELATCH_MOTOR_RUN_PWM, ELATCH_MOTOR_RUN_PWM,
-                          ELATCH_MOTOR_RUN_TIME_CW, ELATCH_MOTOR_RUN_TIME_CCW);
+                          ELATCH_MOTOR_RUN_TIME_CW, ELATCH_MOTOR_RUN_TIME_CCW, ELATCH_MOTOR_STOP_TIME);
 
   // Elatch switch configuration
   pinMode(E_LATCH_SW_PIN, INPUT_PULLUP);
@@ -612,20 +613,20 @@ void setup() {
 
   delay(1000);
   userPotiDeploy.update();
-  if (userPotiDeploy.hasNewAverage()) {
-    uint32_t potValue = userPotiDeploy.getAverage();  // Avoid division by zero or out-of-range
-    uint32_t scvalue = userPotiDeploy.getScaled(0, 4095, 10, 65535);
+  // if (userPotiDeploy.hasNewAverage()) {
+  uint32_t potValue = userPotiDeploy.getAverage();  // Avoid division by zero or out-of-range
+  uint32_t scvalue = userPotiDeploy.getScaled(0, 4095, 10, 65535);
 
-    Serial.print(F("POTI_VALUE:"));
-    Serial.print(potValue);
+  Serial.print(F("POTI_VALUE:"));
+  Serial.print(potValue);
 
-    Serial.print(F("\tSCALED_VALUE:"));
-    Serial.println(scvalue);
-    static char wtbuf[64];
-    sprintf(wtbuf, "TOUCH+WT+MOC01+%lu", scvalue);
-    handle_usb_command(wtbuf);
-    userPotiDeploy.setNewAverage(false);
-  }
+  Serial.print(F("\tSCALED_VALUE:"));
+  Serial.println(scvalue);
+  static char wtbuf[64];
+  sprintf(wtbuf, "TOUCH+WT+MOC01+%lu", scvalue);
+  handle_usb_command(wtbuf);
+  //   userPotiDeploy.setNewAverage(false);
+  // }
   // Serial.println(F("Setup Completed."));
   // Serial.println(F(""));
 }  // end setup
@@ -640,13 +641,15 @@ void loop(void) {
   unsigned long t0 = micros();
   buttonDeploy.update();
   buttonRetract.update();
-  buttonDoorHandleDeploy.update();
+  // buttonDoorHandleDeploy.update();
+  // buttonDoorHandleDeploy = digitalRead(DEPLOY_HANDLE_SW_PIN);
   buttonOpenRemoteSwitch.update();
 
   t_button = micros() - t0;
 
   t0 = micros();
   doorHandleController.updateeLatchSwitch();
+  doorHandleController.updateeDeploymentStatus();
   t_latch = micros() - t0;
 
   // t0 = micros();
@@ -669,25 +672,25 @@ void loop(void) {
 
   t0 = micros();
   moc_reading();
-  if (values[8] || buttonOpenRemoteSwitch.getswitchStatus())
+  if ((values[8] == 6500) || buttonOpenRemoteSwitch.getswitchStatus())
     doorHandleController.setState(DOOR_HANDLE_OPEN);
   t_moc = micros() - t0;
 
-  if (buttonDoorHandleDeploy.getswitchStatus())
-    ledCtrl.ledOn(4, LedColor::BLUE);
-  else ledCtrl.ledOff(4);
+  if (doorHandleController.getDeploymentStatus())
+    ledCtrl.ledOn(1, LedColor::WHITE);
+  else ledCtrl.ledOff(1);
 
   t0 = micros();
   doorHandleController.refreshState();
   t_state = micros() - t0;
 
   t0 = micros();
-  eLatchMotorDriver.update();
-  t_motor = micros() - t0;
-
-  t0 = micros();
   actuator.update();
   t_actuator = micros() - t0;
+
+  t0 = micros();
+  eLatchMotorDriver.update();
+  t_motor = micros() - t0;
 
   t0 = micros();
   //   for (uint16_t i = 0; i < NUM_PIXELS; ++i)
@@ -699,16 +702,16 @@ void loop(void) {
     ledCtrl.ledOn(5, LedColor::RED);
 
   if (values[0] == 6500)
-    ledCtrl.ledOn(3, LedColor::BLUE);
+    ledCtrl.ledOn(3, LedColor::WHITE);
   else ledCtrl.ledOff(3);
 
   if (values[4] == 6500)
-    ledCtrl.ledOn(2, LedColor::GREEN);
+    ledCtrl.ledOn(2, LedColor::WHITE);
   else
     ledCtrl.ledOff(2);
 
   if (values[8] == 6500)
-    ledCtrl.ledOn(4, LedColor::WHITE);
+    ledCtrl.ledOn(4, LedColor::GREEN);
   else
     ledCtrl.ledOff(4);
 

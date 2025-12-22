@@ -26,16 +26,12 @@
 #define LED_PWM_PIN 2          // OUT: LED indications(Strip)
 #define NUM_PIXELS 10     // Number of LEDs in the strip
 /*Status LEDs
-1. Power - RED
-2. Flush(Deploy) - blink during flush
-3. LOCK PROX - 
-4. UNLOCK PROX -
-5. OPEN Signal - GREEN
-6. Door Lock Status - RED
-7. Unused
-8. Unused
-9. Unused
-10. Unused
+0. Power - RED
+1. Flush(Deploy) - blink during flush
+2. LOCK PROX - 
+3. UNLOCK PROX -
+4. OPEN Signal - GREEN
+5. Door Lock Status - RED
 */
 
 #define SERIAL1_RX_PIN 16
@@ -83,7 +79,7 @@
 
 #define ELATCH_MOTOR_RUN_TIME_CW 200
 #define ELATCH_MOTOR_RUN_TIME_CCW 200
-#define ELATCH_MOTOR_RUN_PWM 900
+#define ELATCH_MOTOR_RUN_PWM 1800
 
 #define ELATCH_MOTOR_STOP_TIME 500
 
@@ -95,10 +91,10 @@
 #define LED_FADE_OUT_TIME_MS 600
 
 #define RETRACT_TIME_MS 2000
-#define RETRACT_PWM 2500
+#define RETRACT_PWM 2400
 
 #define DEPLOY_TIME_MS 2000
-#define DEPLOY_PWM 2500
+#define DEPLOY_PWM 2800
 
 #define NB_OPEN_RETRY_COUNT 2
 
