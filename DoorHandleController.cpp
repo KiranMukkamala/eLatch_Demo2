@@ -34,12 +34,13 @@ void DoorHandleController::setState(DoorHandleState state) {
       case DOOR_HANDLE_CLOSED:
         if (latchSwitchState && ((doorHandleState == DOOR_HANDLE_INIT) || (doorHandleState == DOOR_HANDLE_RETRACT))) {
           doorHandleState = state;
-          ledCtrl->ledOn(6, LedColor::RED);
+          // ledCtrl->ledOn(5, LedColor::RED);
           // Serial.println(F("Entering DOOR_HANDLE_CLOSED"));
-        } else {
-          // Serial.println(F("Please close the DOOR!!!"));
-          ledCtrl->ledOff(6);
-        }
+        } 
+        // else {
+        //   // Serial.println(F("Please close the DOOR!!!"));
+        //   ledCtrl->ledOff(5);
+        // }
         break;
       case DOOR_HANDLE_RETRACT:
         if ((doorHandleState == DOOR_HANDLE_LATCHED) || (doorHandleState == DOOR_HANDLE_WAIT_OPEN)) {
@@ -119,11 +120,11 @@ void DoorHandleController::refreshState() {
           // else
           //   Serial.println(F("DOOR_HANDLE_INIT:: Waiting for Door handle elatch motor status"));
         } else if ((deploymentSwitchState) && (actuator->getRecentCommand() != MOTOR_START_RETRACT) && (actuator->setState(MOTOR_START_RETRACT)));
-        
-          // Serial.println(F("DOOR_HANDLE_INIT:: Waiting for Door handle flush status"));
+
+        // Serial.println(F("DOOR_HANDLE_INIT:: Waiting for Door handle flush status"));
         // else
         //   Serial.println(F("DOOR_HANDLE_INIT:: Waiting for Door handle flush status else"));
-      } 
+      }
       // else
       //   Serial.println(F("DOOR_HANDLE_INIT:: Waiting for DOOR close status"));
       break;
@@ -137,8 +138,8 @@ void DoorHandleController::refreshState() {
       //   // buttonDeploy.update();
       //   // Serial.println("DOOR_HANDLE_CLOSED:: Waiting for Trigger :: " + String(buttonDeploy.getswitchStatus()) + " " + String(actuator.getState()));
       // }
-      if (latchSwitchState)
-        ledCtrl->ledOn(6, LedColor::RED);
+      // if (latchSwitchState)
+      //   ledCtrl->ledOn(5, LedColor::RED);
       break;
 
     case DOOR_HANDLE_RETRACT:
@@ -195,14 +196,17 @@ void DoorHandleController::refreshState() {
       break;
     case DOOR_HANDLE_WAIT_TO_LATCH:
       if (latchSwitchState) {
-        if (ledCtrl->getLedState(5) == LedState::OFF)
-          ledCtrl->ledOn(5, LedColor::RED);
+        // if (ledCtrl->getLedState(5) == LedState::OFF) {
+        //   ledCtrl->ledOn(5, LedColor::RED);
+        // }
         setState(DOOR_HANDLE_LATCHED);
-      } else {
-        if (ledCtrl->getLedState(5) == LedState::ON)
-          ledCtrl->ledOff(5);
-      }
-      ledCtrl->updateLedState(5);
+      } 
+      // else {
+
+      //   if (ledCtrl->getLedState(5) == LedState::ON)
+      //     ledCtrl->ledOff(5);
+      // }
+      // ledCtrl->updateLedState(5);
       break;
     case DOOR_HANDLE_LATCHED:
       Check_Disable_Locking();

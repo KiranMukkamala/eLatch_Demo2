@@ -590,7 +590,7 @@ void setup() {
   //led door handle - initialize FIRST, then wait before turning on
   ledCtrl.begin(LED_MAX_BRIGHTNESS);
   delay(100);  // Give LED strip time to initialize
-  ledCtrl.ledOn(0, LedColor::RED);
+  ledCtrl.ledOn(0, LedColor::WHITE);
   ledCtrl.updateLedState(0);  // Force immediate update
 
   pinMode(ILLUMINATION_LED_PIN, OUTPUT);
@@ -600,9 +600,10 @@ void setup() {
   // Door Handle Controller object configuration
   doorHandleController.setDependencies(&buttonDeploy, &buttonRetract, &buttonDoorHandleDeploy, &(values[4]), &(values[0]), &ledCtrl, &actuator, &eLatchMotorDriver);
 
+  delay(1000);
   // Set the sensitivity for the CAPA sensors
   static char wtbuf1[64];
-  sprintf(wtbuf1, "TOUCH+WT+CAP01+250");
+  sprintf(wtbuf1, "TOUCH+WT+CAP01+500");
   handle_usb_command(wtbuf1);
 
   delay(1000);
@@ -617,16 +618,17 @@ void setup() {
   uint32_t potValue = userPotiDeploy.getAverage();  // Avoid division by zero or out-of-range
   uint32_t scvalue = userPotiDeploy.getScaled(0, 4095, 10, 65535);
 
-  Serial.print(F("POTI_VALUE:"));
-  Serial.print(potValue);
+  // Serial.print(F("POTI_VALUE:"));
+  // Serial.print(potValue);
 
-  Serial.print(F("\tSCALED_VALUE:"));
-  Serial.println(scvalue);
+  // Serial.print(F("\tSCALED_VALUE:"));
+  // Serial.println(scvalue);
   static char wtbuf[64];
   sprintf(wtbuf, "TOUCH+WT+MOC01+%lu", scvalue);
   handle_usb_command(wtbuf);
   //   userPotiDeploy.setNewAverage(false);
   // }
+  delay(10000);
   // Serial.println(F("Setup Completed."));
   // Serial.println(F(""));
 }  // end setup
@@ -697,9 +699,9 @@ void loop(void) {
   //     ledCtrl.updateLedState(i);
 
   if (doorHandleController.getswitchStatus())
-    ledCtrl.ledOff(5);
+    ledCtrl.ledOn(5, LedColor::WHITE);
   else
-    ledCtrl.ledOn(5, LedColor::RED);
+    ledCtrl.ledOff(5);
 
   if (values[0] == 6500)
     ledCtrl.ledOn(3, LedColor::WHITE);
@@ -711,7 +713,7 @@ void loop(void) {
     ledCtrl.ledOff(2);
 
   if (values[8] == 6500)
-    ledCtrl.ledOn(4, LedColor::GREEN);
+    ledCtrl.ledOn(4, LedColor::WHITE);
   else
     ledCtrl.ledOff(4);
 
@@ -840,21 +842,21 @@ void moc_reading() {
     }
     if (frameTimingEnabled) {
       unsigned long procLatency = micros() - frameEndMicros;
-      Serial.print(F("INN_CAPA_EN:"));
+      Serial.print(F("IN_CAPA_EN:"));
       Serial.print(values[0] + 6000);
-      Serial.print(F("\tINN_CAPA_V:"));
+      Serial.print(F("\tIN_CAPA_V:"));
       Serial.print(values[1]);
-      Serial.print(F("\tINN_CAPA_TH:"));
+      Serial.print(F("\tIN_CAPA_TH:"));
       Serial.print(values[2]);
-      Serial.print(F("\tEXT_CAPA_EN:"));
+      Serial.print(F("\tE_CAPA_EN:"));
       Serial.print(values[4] + 6200);
-      Serial.print(F("\tEXT_CAPA_V:"));
-      Serial.print(values[5]);
-      Serial.print(F("\tEXT_CAPA_TH:"));
-      Serial.print(values[6]);
+      // Serial.print(F("\tEXT_CAPA_V:"));
+      // Serial.print(values[5]);
+      // Serial.print(F("\tEXT_CAPA_TH:"));
+      // Serial.print(values[6]);
       Serial.print(F("\tMOC_EN:"));
       Serial.print(values[8]);
-      Serial.print(F("\tMOC_P:"));
+      Serial.print(F("\tMOC_V:"));
       Serial.print(values[9]);
       Serial.print(F("\tMOC_TH:"));
       Serial.println(values[10]);
