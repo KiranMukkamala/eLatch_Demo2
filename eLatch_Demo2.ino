@@ -20,7 +20,7 @@
  * 2025-12-17
  * 
  * @version
- * 2.1
+ * 2.2
  *
  * @note
  * Firmware is writen for ESP32 WROOM board. Debugging is via native Serial port(TX0-RX0).
@@ -53,6 +53,7 @@
  * 2025.08.19 - v1.3 Integration with CAPA Sensors, Actuators and Feedback Mechanisms
  * 2025.10.02 - v2.0 A-Sample Integration with Ideo ECU for MOC, 2 CAPs reading
  * 2025.12.17 - v2.1 Updates for ESP32 WROOM upgrade
+ * 2026.01.19 - v2.2 Updates requested from Roland, Deploy happens only with switch no more pulling.
  * ============================================================================
  * 
  */
@@ -590,8 +591,6 @@ void setup() {
   //led door handle - initialize FIRST, then wait before turning on
   ledCtrl.begin(LED_MAX_BRIGHTNESS);
   delay(100);  // Give LED strip time to initialize
-  ledCtrl.ledOn(0, LedColor::WHITE);
-  ledCtrl.updateLedState(0);  // Force immediate update
 
   pinMode(ILLUMINATION_LED_PIN, OUTPUT);
 
@@ -603,7 +602,7 @@ void setup() {
   delay(1000);
   // Set the sensitivity for the CAPA sensors
   static char wtbuf1[64];
-  sprintf(wtbuf1, "TOUCH+WT+CAP01+500");
+  sprintf(wtbuf1, "TOUCH+WT+CAP01+400");
   handle_usb_command(wtbuf1);
 
   delay(1000);
@@ -629,6 +628,8 @@ void setup() {
   //   userPotiDeploy.setNewAverage(false);
   // }
   delay(10000);
+  ledCtrl.ledOn(0, LedColor::WHITE);
+  ledCtrl.updateLedState(0);  // Force immediate update
   // Serial.println(F("Setup Completed."));
   // Serial.println(F(""));
 }  // end setup
