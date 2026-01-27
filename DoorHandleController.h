@@ -27,23 +27,23 @@ public:
   void setState(DoorHandleState state);
   void Check_Disable_Locking();
   DoorHandleState getState() const;
-  void setDependencies(Debounce* deployBtn, Debounce* retractBtn, bool* deployHandleBtn,
+  void setDependencies(Debounce* deployBtn, Debounce* retractBtn,
                        uint16_t* extCapa, uint16_t* inrCapa,
-                       LEDControl* ledCtrl, MotorController* actuator,
+                       LEDControl* ledCtrl,
                        MotorController* eLatchMotorDriver);
   void updateeLatchSwitch(void);
   bool getswitchStatus(void);
-  void updateeDeploymentStatus(void);
-  bool getDeploymentStatus(void);
+  // void updateeDeploymentStatus(void);
+  // bool getDeploymentStatus(void);
 private:
   DoorHandleState doorHandleState;
   Debounce* buttonDeploy;
   Debounce* buttonRetract;
-  bool* buttonHandleDeploy;
+  // bool* buttonHandleDeploy;
   uint16_t* extcapaSensor;
   uint16_t* inrcapaSensor;
   LEDControl* ledCtrl;
-  MotorController* actuator;
+  // MotorController* actuator;
   MotorController* eLatchMotorDriver;
   bool Disable_Locking = false;  // for disabling the external capa sensor
   uint16_t Nb_Open_Attempt;
@@ -53,11 +53,11 @@ private:
   bool fallingSwEdge = false;
   bool currentSwState = HIGH;
   bool lastSwState = HIGH;
-  bool deploymentSwitchState = false;
-  bool deployrisingSwEdge = false;
-  bool deployfallingSwEdge = false;
-  bool deploycurrentSwState = HIGH;
-  bool deploylastSwState = HIGH;
+  // bool deploymentSwitchState = false;
+  // bool deployrisingSwEdge = false;
+  // bool deployfallingSwEdge = false;
+  // bool deploycurrentSwState = HIGH;
+  // bool deploylastSwState = HIGH;
 };
 
 #endif  // DOOR_HANDLE_CONTROLLER_H

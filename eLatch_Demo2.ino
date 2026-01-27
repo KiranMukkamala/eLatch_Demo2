@@ -17,10 +17,10 @@
  * Adrian David/ Kiran Mukkamala
  * 
  * @date
- * 2025-12-17
+ * 2026-01-27
  * 
  * @version
- * 2.2
+ * 2.3
  *
  * @note
  * Firmware is writen for ESP32 WROOM board. Debugging is via native Serial port(TX0-RX0).
@@ -54,6 +54,7 @@
  * 2025.10.02 - v2.0 A-Sample Integration with Ideo ECU for MOC, 2 CAPs reading
  * 2025.12.17 - v2.1 Updates for ESP32 WROOM upgrade
  * 2026.01.19 - v2.2 Updates requested from Roland, Deploy happens only with switch no more pulling.
+ * 2026.01.27 - v2.3 Updates inlcude removal of actuator, teramont switch Since the handle is fixed in deploy pos.
  * ============================================================================
  * 
  */
@@ -82,7 +83,7 @@ DoorHandleController doorHandleController;
 // NOTE: ensure only one definition of 'actuator' exists in the project.
 // motorController.cpp should contain the concrete definition 'MotorController actuator;'
 // Here we declare extern to avoid duplicate definition at link time.
-MotorController actuator;
+// MotorController actuator;
 // If eLatchMotorDriver is defined in another translation unit, declare extern.
 // If not, create the single definition in one .cpp file instead of in the .ino.
 MotorController eLatchMotorDriver;
@@ -92,7 +93,7 @@ Debounce buttonDeploy(DEPLOY_SW_PIN, LOW);
 Debounce buttonRetract(RETRACT_SW_PIN, LOW);
 Debounce buttonOpenRemoteSwitch(OPEN_SWITCH_PIN, LOW);
 // Debounce buttonDoorHandleDeploy(DEPLOY_HANDLE_SW_PIN, LOW);
-bool buttonDoorHandleDeploy = false;
+// bool buttonDoorHandleDeploy = false;
 
 // LED control objects
 LEDControl ledCtrl;
@@ -111,7 +112,7 @@ char rawFrame[maxFrameLength];
 bool verbosePrint = false;  // set to true to print full frame and fields (slower)
 
 // Timing control
-bool frameTimingEnabled = true;  // print per-frame timing
+bool frameTimingEnabled = false;  // print per-frame timing
 unsigned long frameStartMicros = 0;
 unsigned long frameEndMicros = 0;
 unsigned long lastFrameEndMicros = 0;
@@ -570,9 +571,9 @@ void setup() {
   userPotiDeploy.begin(ADC_USER_OPEN_THRESHOLD_PIN, NUM_SAMPLES, ADC_REF_VOLTAGE);
 
   //door handle actuator
-  actuator.begin(1, MOTOR1_ENABLE_PIN, MOTOR1_RPWM_PIN, MOTOR1_LPWM_PIN,
-                 DEPLOY_PWM, RETRACT_PWM,
-                 DEPLOY_TIME_MS, RETRACT_TIME_MS);
+  // actuator.begin(1, MOTOR1_ENABLE_PIN, MOTOR1_RPWM_PIN, MOTOR1_LPWM_PIN,
+  //                DEPLOY_PWM, RETRACT_PWM,
+  //                DEPLOY_TIME_MS, RETRACT_TIME_MS);
 
   // elacth Motor driver
   eLatchMotorDriver.begin(2, MOTOR2_ENABLE_PIN, MOTOR2_RPWM_PIN, MOTOR2_LPWM_PIN,
@@ -586,7 +587,7 @@ void setup() {
   pinMode(DEPLOY_SW_PIN, INPUT_PULLUP);
   pinMode(RETRACT_SW_PIN, INPUT_PULLUP);
   pinMode(OPEN_SWITCH_PIN, INPUT_PULLUP);
-  pinMode(DEPLOY_HANDLE_SW_PIN, INPUT_PULLUP);
+  // pinMode(DEPLOY_HANDLE_SW_PIN, INPUT_PULLUP);
 
   //led door handle - initialize FIRST, then wait before turning on
   ledCtrl.begin(LED_MAX_BRIGHTNESS);
@@ -597,7 +598,7 @@ void setup() {
   // Illumincation led glow
   digitalWrite(ILLUMINATION_LED_PIN, HIGH);
   // Door Handle Controller object configuration
-  doorHandleController.setDependencies(&buttonDeploy, &buttonRetract, &buttonDoorHandleDeploy, &(values[4]), &(values[0]), &ledCtrl, &actuator, &eLatchMotorDriver);
+  doorHandleController.setDependencies(&buttonDeploy, &buttonRetract, &(values[4]), &(values[0]), &ledCtrl, &eLatchMotorDriver);
 
   delay(1000);
   // Set the sensitivity for the CAPA sensors
@@ -629,7 +630,9 @@ void setup() {
   // }
   delay(10000);
   ledCtrl.ledOn(0, LedColor::WHITE);
+  ledCtrl.ledOn(1, LedColor::WHITE);
   ledCtrl.updateLedState(0);  // Force immediate update
+  ledCtrl.updateLedState(1);  // Force immediate update
   // Serial.println(F("Setup Completed."));
   // Serial.println(F(""));
 }  // end setup
@@ -638,7 +641,7 @@ void setup() {
 void loop(void) {
   unsigned long t_start = micros();
   unsigned long t_button = 0, t_latch = 0, t_moc = 0;
-  unsigned long t_state = 0, t_motor = 0, t_actuator = 0, t_led = 0;
+  unsigned long t_state = 0, t_motor = 0, t_led = 0;
   unsigned long t_end = 0;
 
   unsigned long t0 = micros();
@@ -652,7 +655,7 @@ void loop(void) {
 
   t0 = micros();
   doorHandleController.updateeLatchSwitch();
-  doorHandleController.updateeDeploymentStatus();
+  // doorHandleController.updateeDeploymentStatus();
   t_latch = micros() - t0;
 
   // t0 = micros();
@@ -679,17 +682,13 @@ void loop(void) {
     doorHandleController.setState(DOOR_HANDLE_OPEN);
   t_moc = micros() - t0;
 
-  if (doorHandleController.getDeploymentStatus())
-    ledCtrl.ledOn(1, LedColor::WHITE);
-  else ledCtrl.ledOff(1);
-
   t0 = micros();
   doorHandleController.refreshState();
   t_state = micros() - t0;
 
-  t0 = micros();
-  actuator.update();
-  t_actuator = micros() - t0;
+  // t0 = micros();
+  // actuator.update();
+  // t_actuator = micros() - t0;
 
   t0 = micros();
   eLatchMotorDriver.update();
@@ -739,8 +738,8 @@ void loop(void) {
   Serial.print(t_state);
   Serial.print("\t Motor:");
   Serial.print(t_motor);
-  Serial.print("\t Actuator:");
-  Serial.print(t_actuator);
+  // Serial.print("\t Actuator:");
+  // Serial.print(t_actuator);
   Serial.print("\t LED:");
   Serial.print(t_led);
   Serial.print("\t Total:");

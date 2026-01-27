@@ -18,7 +18,7 @@
 #define DEPLOY_SW_PIN     33  // IN: Deploy Switch read
 #define RETRACT_SW_PIN    32  // IN: Retract Switch read
 #define OPEN_SWITCH_PIN   35  // IN: Open Switch read (input-only)
-#define DEPLOY_HANDLE_SW_PIN 39 // IN: Deploy Switch (teramount) read (VN)
+// #define DEPLOY_HANDLE_SW_PIN 39 // IN: Deploy Switch (teramount) read (VN)
 
 #define ADC_USER_OPEN_THRESHOLD_PIN 34 // IN: Threshold reading for deployment
 
