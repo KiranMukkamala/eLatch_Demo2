@@ -61,7 +61,7 @@ private:
 
   // Temp timer to fix the elatch state issue
   unsigned long startTempTimer = 0;
-  unsigned long TempTimerDuration = 1000;
+  unsigned long TempTimerDuration = 600;
   bool tempTimerExecuted = false;
 };
 
