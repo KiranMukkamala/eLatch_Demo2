@@ -58,6 +58,11 @@ private:
   // bool deployfallingSwEdge = false;
   // bool deploycurrentSwState = HIGH;
   // bool deploylastSwState = HIGH;
+
+  // Temp timer to fix the elatch state issue
+  unsigned long startTempTimer = 0;
+  unsigned long TempTimerDuration = 1000;
+  bool tempTimerExecuted = false;
 };
 
 #endif  // DOOR_HANDLE_CONTROLLER_H

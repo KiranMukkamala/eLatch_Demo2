@@ -68,9 +68,11 @@ void DoorHandleController::setState(DoorHandleState state) {
         // }
         break;
       case DOOR_HANDLE_OPEN:
-        if ((doorHandleState == DOOR_HANDLE_WAIT_OPEN) || (doorHandleState == DOOR_HANDLE_LATCHED)) {
+        if ((doorHandleState == DOOR_HANDLE_WAIT_OPEN) || ((tempTimerExecuted) && doorHandleState == DOOR_HANDLE_LATCHED)) {
           doorHandleState = state;
           Nb_Open_Attempt = 0;
+          startTempTimer = 0;  // reset the timer
+          tempTimerExecuted = false;
           Serial.println(F("Entering DOOR_HANDLE_OPEN"));
         }
         // else {
@@ -89,6 +91,8 @@ void DoorHandleController::setState(DoorHandleState state) {
       case DOOR_HANDLE_LATCHED:
         if (doorHandleState == DOOR_HANDLE_WAIT_TO_LATCH) {
           doorHandleState = state;
+          startTempTimer = 0;  // reset the timer
+          tempTimerExecuted = false;
           Serial.println(F("Entering DOOR_HANDLE_LATCHED"));
         }
         break;
@@ -196,10 +200,25 @@ void DoorHandleController::refreshState() {
     case DOOR_HANDLE_LATCHED:
       Check_Disable_Locking();
 
-      // Incase of Retract switch pressed or external lock capa sensor pressed, retract the handle
-      if (latchSwitchState && (buttonRetract->getswitchStatus() || ((!Disable_Locking) && *extcapaSensor))) {
-        setState(DOOR_HANDLE_RETRACT);
+      // Check whether the temporary timer is executed or not
+      if ((!startTempTimer) && (eLatchMotorDriver->getRecentCommand() != MOTOR_START_RETRACT) && eLatchMotorDriver->setState(MOTOR_START_RETRACT)) {
+        // Start Temporary timer to lock the eLatch and unlock
+        startTempTimer = millis();
+        Serial.println(F("DOOR_HANDLE_LATCHED:: Temp Timer Started!!!"));
+      } else if ((millis() - startTempTimer) >= TempTimerDuration) {  //Timer is expired
+        if ((!tempTimerExecuted) && (eLatchMotorDriver->getRecentCommand() != MOTOR_START_DEPLOY) && eLatchMotorDriver->setState(MOTOR_START_DEPLOY)) {
+          tempTimerExecuted = true;
+          Serial.println(F("DOOR_HANDLE_LATCHED:: Temp Timer Finished!!!"));
+        }
+        // Incase of Retract switch pressed or external lock capa sensor pressed, retract the handle
+        else if (latchSwitchState && (buttonRetract->getswitchStatus() || ((!Disable_Locking) && *extcapaSensor))) {
+          setState(DOOR_HANDLE_RETRACT);
+          startTempTimer = 0;  // reset the timer
+          tempTimerExecuted = true;
+          Serial.println(F("DOOR_HANDLE_LATCHED:: Temp Timer Reset!!!"));
+        }
       }
+
       break;
 
     default:

@@ -55,6 +55,7 @@
  * 2025.12.17 - v2.1 Updates for ESP32 WROOM upgrade
  * 2026.01.19 - v2.2 Updates requested from Roland, Deploy happens only with switch no more pulling.
  * 2026.01.27 - v2.3 Updates inlcude removal of actuator, teramont switch Since the handle is fixed in deploy pos.
+ * 2026.03.17 - v2.4 Updates to include Temporary timer for lock-unlock mechanism to fix mechanical issue with eLatch.
  * ============================================================================
  * 
  */
@@ -63,7 +64,7 @@
 #include "esp_log.h"
 #include "./Debounce.h"
 #include "ADCReader.h"
-#include "TimeoutManager.h"
+// #include "TimeoutManager.h"
 #include "LEDControl.h"
 #include "constants.h"
 #include "motorController.h"
